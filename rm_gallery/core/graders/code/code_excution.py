@@ -14,6 +14,8 @@ import re
 import traceback
 from typing import Any
 
+from loguru import logger
+
 from rm_gallery.core.graders.base_grader import BaseGrader
 from rm_gallery.core.graders.schema import GraderMode, GraderScore
 
@@ -52,9 +54,9 @@ class CodeExecutionGrader(BaseGrader):
             self.compute_score = compute_score
             self.test_framework_available = True
         except ImportError:
-            print(
+            logger.warning(
                 "Warning: Code testing framework not available. "
-                "Please ensure rm_gallery.gallery.rm.code.prime_code is properly installed.",
+                "Please ensure rm_gallery.gallery.rm.code.prime_code is properly installed."
             )
             self.test_framework_available = False
 

@@ -36,14 +36,14 @@ from loguru import logger
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+
+from rm_gallery.core.models.openai_chat_model import OpenAIChatModel
+from rm_gallery.core.runner.grading_runner import GradingRunner
 from tutorials.cookbooks.grader_validation.rewardbench2 import (
     RewardBench2Analyzer,
     RewardBench2Grader,
     load_rewardbench2_data,
 )
-from rm_gallery.core.models.openai_chat_model import OpenAIChatModel
-from rm_gallery.core.models.dashscope_chat_model import DashScopeChatModel
-from rm_gallery.core.runner.grading_runner import GradingRunner
 
 
 async def run_rewardbench2_test(
@@ -96,17 +96,8 @@ async def run_rewardbench2_test(
 
         # Initialize model
         logger.info(f"Initializing model: {model_name}")
-        # Use DashScopeChatModel for qwen3 models with enable_thinking=False
-        if "qwen3" in model_name.lower():
-            api_key = os.getenv("DASHSCOPE_API_KEY")
-            chat_model = DashScopeChatModel(
-                model=model_name,
-                api_key=api_key,
-                stream=False,
-                enable_thinking=False,
-            )
-        else:
-            chat_model = OpenAIChatModel(model=model_name)
+
+        chat_model = OpenAIChatModel(model=model_name)
 
         # Initialize grader
         grader = RewardBench2Grader(

@@ -190,7 +190,7 @@ grader = GraderRegistry.get("custom.length_grader")
 ```
 from rm_gallery.core.grader.base import LLMGrader
 from rm_gallery.core.schema.template import Chat
-from rm_gallery.core.schema.message import ChatMessage
+from rm_gallery.core.schema.oai.message import ChatMessage
 
 # 定义评估模板
 chat_template = Chat(

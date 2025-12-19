@@ -12,17 +12,17 @@ using RubricsGrader as an example:
 Example:
     Run all tests:
     ```bash
-    poetry run pytest tests/graders/agent/trajectory/test_rubrics_based_trajectory_performance.py -v
+    pytest tests/graders/agent/trajectory/test_rubrics_based_trajectory_performance.py -v
     ```
 
     Run only unit tests:
     ```bash
-    poetry run pytest tests/graders/agent/trajectory/test_rubrics_based_trajectory_performance.py -m unit
+    pytest tests/graders/agent/trajectory/test_rubrics_based_trajectory_performance.py -m unit
     ```
 
     Run quality tests (only if API keys are configured):
     ```bash
-    poetry run pytest tests/graders/agent/trajectory/test_rubrics_based_trajectory_performance.py -m quality
+    pytest tests/graders/agent/trajectory/test_rubrics_based_trajectory_performance.py -m quality
     ```
 """
 
@@ -88,7 +88,7 @@ class TestRubricsBasedTrajectoryPerformanceUnit:
                 "description": "数据是否准确",
                 "check_points": ["数值正确", "来源可靠"],
             },
-            ]
+        ]
 
         # Setup mock response with some failures
         dimension_evaluations = [
@@ -135,6 +135,7 @@ class TestRubricsBasedTrajectoryPerformanceUnit:
         # 完整性: 2/3=0.667, 准确性: 1/2=0.5
         # 平均总分: (0.667 + 0.5) / 2 = 0.583
         assert abs(result.score - 0.583) < 0.02
+
     @pytest.mark.asyncio
     async def test_invalid_rubrics_edge_cases(self):
         """Test edge cases with invalid or empty rubrics"""
@@ -269,6 +270,7 @@ class TestRubricsBasedTrajectoryPerformanceUnit:
         assert "query" in tool_calls_str
         assert final_response == "根据搜索结果，分析如下..."
 
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL")
 RUN_QUALITY_TESTS = bool(OPENAI_API_KEY and OPENAI_BASE_URL)
@@ -297,9 +299,7 @@ class TestRubricsBasedTrajectoryPerformanceQuality:
     @pytest.fixture
     def test_data(self):
         """Load test data from JSON file"""
-        test_data_path = os.path.join(
-            os.path.dirname(__file__), "test_data_with_rubrics.json"
-        )
+        test_data_path = os.path.join(os.path.dirname(__file__), "test_data_with_rubrics.json")
         with open(test_data_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return data
@@ -391,6 +391,7 @@ class TestRubricsBasedTrajectoryPerformanceQuality:
 
         # Should have high score (though we allow some variance due to LLM)
         assert result.score >= 0.5
+
     @pytest.mark.asyncio
     async def test_poor_response_performance(self, model):
         """Test that grader correctly identifies poor responses"""
@@ -430,7 +431,7 @@ class TestRubricsBasedTrajectoryPerformanceQuality:
                     "覆盖ROE分析",
                     "给出具体数据支撑",
                 ],
-            }
+            },
         ]
 
         result = await grader.aevaluate(messages=messages, rubrics=rubrics)
@@ -443,6 +444,7 @@ class TestRubricsBasedTrajectoryPerformanceQuality:
 
         # Should have low score
         assert result.score < 0.5
+
     @pytest.mark.asyncio
     async def test_consistency_performance(self, model):
         """Test grader evaluation consistency on same input"""
@@ -536,4 +538,3 @@ class TestRubricsBasedTrajectoryPerformanceQuality:
 
         # Should have evaluated all dimensions
         assert len(result.metadata["dimension_evaluations"]) == len(rubrics)
-

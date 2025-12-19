@@ -26,7 +26,7 @@
 ## Quick Tutorials
 
 <div class="card-grid">
-  
+
   <a href="./tutorials/agent-evaluation.md" class="feature-card">
     <div class="card-header card-header-lg">
       <img src="https://unpkg.com/lucide-static@latest/icons/bot.svg" class="card-icon card-icon-agent">

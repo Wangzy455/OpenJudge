@@ -23,6 +23,8 @@ import sys
 import traceback
 from typing import Any
 
+from loguru import logger
+
 from .testing_util import run_test
 
 
@@ -52,7 +54,6 @@ def check_correctness(
     in_outs: dict,
     generation: Any,
     timeout: float = 10.0,
-    debug: bool = True,
 ):
     """Check correctness of code generation with a global timeout.
     The global timeout is to catch some extreme/rare cases not handled by the timeouts
@@ -63,7 +64,7 @@ def check_correctness(
     metadata_list = manager.list()
     p = multiprocessing.Process(
         target=_temp_run,
-        args=(in_outs, generation, debug, result, metadata_list, timeout),
+        args=(in_outs, generation, result, metadata_list, timeout),
     )
     p.start()
     p.join(timeout=timeout + 1)
@@ -73,6 +74,5 @@ def check_correctness(
     if not result:
         # consider that all tests failed
         result = [[-1 for i in range(len(in_outs["inputs"]))]]
-        if debug:
-            print("global timeout")
+        logger.debug("global timeout")
     return result[0], metadata_list

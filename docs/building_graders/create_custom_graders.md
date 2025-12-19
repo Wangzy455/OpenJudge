@@ -1,514 +1,279 @@
 # Create Custom Graders
+Custom graders allow you to define precisely how you want to evaluate AI model responses when built-in evaluation tools don't meet your specific needs. This guide helps you build the right grader for your task by following a structured approach to grader design.
 
-When built-in evaluation tools don't meet your specific needs, custom graders allow you to define precisely how you want to evaluate AI model responses. This guide walks you through creating both LLM-based and rule-based graders that work seamlessly with RM-Gallery.
+> **Tip:** Before creating custom graders, review the [Core Concepts](../get_started/core_concepts.md) to understand how graders fit into the RM-Gallery ecosystem.
+>
 
-## What You'll Learn
+## Understanding Your Evaluation Needs
+Before diving into implementation, it's essential to clearly define what you want to evaluate and in what scenario. Consider whether you're measuring objective properties like length and keyword presence or subjective qualities such as helpfulness and coherence. Determine if you need absolute scores or relative rankings, and think about what constitutes a "good" response in your particular use case.
 
-In this guide, you will:
-- Understand the two main types of custom graders: LLM-based and rule-based
-- Learn when to use each type of grader
-- Implement both types with practical examples
-- Follow best practices for creating robust and reliable custom graders
+Depending on your objectives, evaluation can take several forms. For quality assessment, the focus might be on whether responses are factually accurate, effectively address the user's query, maintain a coherent and logical structure, or stay relevant to the topic at hand.
 
-## Understanding Custom Graders
+Compliance-focused evaluations serve a different purpose, ensuring that responses adhere to specific guidelines. This could mean verifying the correct format has been used, confirming that the content aligns with safety policies by avoiding harmful material, or simply checking that the model has followed all explicit instructions provided in the prompt.
 
-Custom graders are evaluation tools you create to assess AI model responses based on your specific criteria. RM-Gallery offers two main approaches:
+In contrast, comparative evaluations are designed to rank or select from multiple options. This includes identifying the best-performing model among several candidates, ranking different responses to the same query by quality, or conducting A/B tests to see which version of a prompt yields superior results.
 
-1. **LLM-based graders**: Use another AI model to evaluate responses - great for subjective assessments
-2. **Rule-based graders**: Use programmed rules to evaluate responses - ideal for objective measurements
+## Choosing the Right Approach
+Based on your evaluation needs, you'll need to choose both an evaluation approach (how to structure the evaluation) and an implementation method (how to execute the evaluation).
 
-Let's explore each approach with practical examples.
+### Evaluation Approaches
+The **Pointwise** approach evaluates each response independently, resulting in a score or classification. It is particularly well-suited for measuring absolute quality, determining if a response meets a specific standard, assessing objective properties, or verifying compliance with fixed rules like formatting or policy guidelines.
 
-## LLM-based Graders
+Conversely, the **Listwise** approach is inherently comparative. It works by directly comparing multiple responses to the same query, producing a relative ranking. This method is the natural choice when your goal is to select the best candidate from a set of responses or perform a direct head-to-head comparison between models or prompts.
 
-LLM-based graders use another AI model (like GPT-4 or Qwen) to evaluate responses. They're excellent for assessing qualities that require language understanding, such as helpfulness, coherence, or domain expertise.
+### Implementation Methods
+**Rule-based** graders rely on predefined, programmed logic and are most effective for objective assessments. They excel when evaluating quantifiable metrics like response length or keyword presence, where the criteria are clear and unambiguous. Their deterministic nature makes them highly reproducible and cost-effective, especially for high-volume evaluations.
 
-### When to Use LLM-based Graders
+**LLM-based** graders leverage the language understanding capabilities of large models (such as GPT-4 or Qwen) to make nuanced judgments. They are ideal for subjective assessments that require an understanding of context and meaning, such as judging helpfulness, coherence, or overall quality. These graders are also the preferred choice when you need rich, detailed feedback and explanations for their scores.
 
-Use LLM-based graders when you need to evaluate:
-- Subjective qualities that require human-like judgment
-- Complex language understanding tasks
-- Context-dependent assessments
-- Qualities that are difficult to define with explicit rules
+### Decision Guide
+| Scenario | Approach | Method | Why |
+| --- | --- | --- | --- |
+| Objective properties (length, keywords) | Pointwise | Rule-based | Deterministic, fast, cost-effective |
+| Subjective qualities (helpfulness, coherence) | Pointwise | LLM-based | Handles nuanced judgments |
+| Response comparison/selection | Listwise | Either | LLM for quality insight, Rule for simplicity |
+| High-volume evaluation | Either | Rule-based | Cost-effective at scale |
+| Detailed feedback needed | Either | LLM-based | Rich qualitative output |
 
-For example, determining if a response is "helpful" or "coherent" typically requires nuanced understanding that rule-based systems struggle with.
 
-### Creating a Custom Helpfulness Grader
+You can combine approaches—using both LLM-based and rule-based graders—for comprehensive evaluation.
 
-Here's how to create a helpfulness grader step by step:
+## Implementing Custom Graders
+Once you've determined the appropriate approach and implementation method, you can begin developing your custom grader.
+
+### Essential Design Principles
+When developing custom graders, ensure they are robust, maintainable, and effective by following core principles. First, establish explicit input/output definitions and implement proper error handling. This ensures your grader behaves predictably even when encountering unexpected inputs. Second, use predictable score ranges across all graders. For binary outcomes, use 0.0 for failure and 1.0 for success. For graded evaluations, stick to a consistent numerical scale, such as 0-1 or 1-5. When producing rankings, assign positive integers starting from 1 for the highest-ranked item.
+
+```python
+async def evaluate_helpfulness(query: str, response: str) -> GraderScore:
+    """Evaluate response helpfulness.
+    
+    Args:
+        query: The original user query
+        response: The model's response to evaluate
+        
+    Returns:
+        GraderScore with score between 0.0-1.0 and explanation
+    """
+    try:
+        # Your evaluation logic here
+        return GraderScore(
+            name="helpfulness_evaluator",
+            score=calculate_helpfulness_score(query, response),
+            reason="Evaluation successful"
+        )
+    except Exception as e:
+        # Return a default score with error information
+        return GraderScore(
+            name="helpfulness_evaluator",
+            score=0.0,
+            reason=f"Evaluation failed: {str(e)}"
+        )
+```
+
+### LLM-based Grader Implementation
+To create effective LLM-based graders, establish the LLM as an expert evaluator with clear role definition, provide detailed instructions on what to evaluate and how to score, include a scoring rubric that defines score meanings, and specify the exact JSON structure for responses as output format.
 
 ```python
 from rm_gallery.core.graders.llm_grader import LLMGrader
 from rm_gallery.core.models.openai_chat_model import OpenAIChatModel
 
-# First, select your model
-# You'll need an API key for the model you choose
+# Define your model
 model = OpenAIChatModel(
-    model="gpt-4",  # or another model like "qwen3-32b"
-    api_key="your-api-key"  # stored in environment variables
+    model="gpt-4",
+    api_key="your-api-key"
 )
 
-# Then define your grader with a clear template
+# Create your grader with a well-engineered prompt
 helpfulness_grader = LLMGrader(
     name="helpfulness_evaluator",
-    mode="pointwise",  # Evaluates one response at a time
+    mode="pointwise",
     model=model,
     template="""
     You are an expert evaluator assessing the helpfulness of AI responses.
-
+    
+    Instructions:
+    1. Consider accuracy, completeness, clarity, and relevance
+    2. Score 0.0 for completely unhelpful responses
+    3. Score 1.0 for exceptionally helpful responses
+    4. Score in between for partial helpfulness
+    
     Query: {query}
     Response: {response}
-
-    Rate the helpfulness of the response on a scale of 0.0 to 1.0, where:
-    - 0.0 = Not helpful at all
-    - 1.0 = Extremely helpful
-
-    Consider factors like accuracy, completeness, clarity, and relevance.
-
+    
     Provide your response in JSON format:
     {
-        "score": <numerical_score>,
-        "reason": "<explanation>"
+        "score": <numerical_score_between_0_and_1>,
+        "reason": "<brief_explanation_for_score>"
     }
     """,
     description="Evaluates how helpful a response is to the given query"
 )
-
-# Now you can use it with GradingRunner to evaluate model responses
 ```
 
-This approach gives you full control over the evaluation criteria and scoring methodology.
+Incorporate examples of good and poor responses when possible to improve consistency.
 
-### Processing LLM Responses
-
-When using LLM-based graders, the AI model generates a natural language response that needs to be parsed into a structured format. RM-Gallery provides several methods for handling these responses:
-
-#### Method 1: Automatic JSON Parsing (Recommended)
-
-The simplest approach is to instruct the LLM to return a JSON-formatted response. RM-Gallery will automatically attempt to parse JSON responses:
+#### Listwise LLM-based Example: Response Comparator
+For comparative evaluations, you can create graders that directly compare multiple responses:
 
 ```python
-from rm_gallery.core.graders.llm_grader import LLMGrader
-from rm_gallery.core.models.openai_chat_model import OpenAIChatModel
-
-model = OpenAIChatModel(model="gpt-4", api_key="your-api-key")
-
-grader = LLMGrader(
-    name="structured_evaluator",
-    mode="pointwise",
+# Create your comparison grader
+comparison_grader = LLMGrader(
+    name="response_comparator",
+    mode="listwise",
     model=model,
     template="""
-    Evaluate the following response to the given query.
-
+    You are an expert judge comparing AI responses to the same query.
+    
+    Instructions:
+    1. Compare overall quality, considering accuracy and helpfulness
+    2. Rank from best (1) to worst (2)
+    3. Explain your reasoning briefly
+    
     Query: {query}
-    Response: {response}
-
-    Provide your evaluation in strict JSON format:
-    {{
-        "score": <number between 0.0 and 1.0>,
-        "reason": "<explanation for the score>"
-    }}
-    """
-)
-```
-
-#### Method 2: Structured Output with Pydantic Models
-
-For more robust parsing, you can define a Pydantic model that represents the expected structure of the LLM's response. **Note: This feature requires the underlying model to support structured output (JSON schema enforcement). Not all models support this feature.**
-
-```python
-from rm_gallery.core.graders.llm_grader import LLMGrader
-from rm_gallery.core.models.openai_chat_model import OpenAIChatModel
-from pydantic import BaseModel
-from typing import List
-
-class DetailedEvaluation(BaseModel):
-    score: float
-    reason: str
-    strengths: List[str]
-    weaknesses: List[str]
-
-model = OpenAIChatModel(model="gpt-4", api_key="your-api-key")  # Requires a model that supports structured output
-
-grader = LLMGrader(
-    name="structured_model_grader",
-    mode="pointwise",
-    model=model,
-    template="""
-    Evaluate the following response to the given query.
-
-    Query: {query}
-    Response: {response}
-
-    Provide a detailed evaluation with the following structure:
-    - Score (0.0 to 1.0)
-    - Reason for the score
-    - Strengths (list of strong points)
-    - Weaknesses (list of weak points)
-    """,
-    structured_model=DetailedEvaluation
-)
-```
-
-#### Method 3: Custom Callback Functions
-
-For more complex parsing logic or when you need to extract additional metadata, you can provide a custom callback function:
-
-```python
-from rm_gallery.core.graders.llm_grader import LLMGrader
-from rm_gallery.core.models.openai_chat_model import OpenAIChatModel
-import re
-import json
-
-def custom_callback(chat_response) -> dict:
-    """Custom callback to extract additional metadata from LLM response.
-
-    Args:
-        chat_response: The parsed ChatResponse object from the model
-
-    Returns:
-        dict: Dictionary with additional metadata to merge into the result
-    """
-    response_text = chat_response.content
-    if isinstance(response_text, list) and len(response_text) > 0:
-        response_text = response_text[0].text if hasattr(response_text[0], 'text') else str(response_text[0])
-    else:
-        response_text = str(response_text)
-
-    # Extract confidence from response
-    confidence_match = re.search(r'"confidence"\s*:\s*(\d+\.?\d*)', response_text)
-    confidence = float(confidence_match.group(1)) if confidence_match else 0.5
-
-    # Try to parse as JSON to extract score and reason
-    try:
-        parsed = json.loads(response_text)
-        extracted_score = parsed.get("score", 0.0)
-        extracted_reason = parsed.get("reason", "No reason provided")
-    except json.JSONDecodeError:
-        # Fallback extraction
-        score_match = re.search(r'"score"\s*:\s*(\d+\.?\d*)', response_text)
-        extracted_score = float(score_match.group(1)) if score_match else 0.0
-        reason_match = re.search(r'"reason"\s*:\s*"([^"]+)"', response_text)
-        extracted_reason = reason_match.group(1) if reason_match else "Extracted from text"
-
-    return {
-        "confidence": confidence,
-        "extracted_score": extracted_score,
-        "extracted_reason": extracted_reason,
-        "raw_response_length": len(response_text)
+    Response 1: {response_1}
+    Response 2: {response_2}
+    
+    Provide your response in JSON format:
+    {
+        "rank": [<better_response_number>, <worse_response_number>],
+        "reason": "<brief_explanation_for_ranking>"
     }
-
-model = OpenAIChatModel(model="gpt-4", api_key="your-api-key")
-
-grader = LLMGrader(
-    name="custom_callback_grader",
-    mode="pointwise",
-    model=model,
-    template="""
-    Evaluate the following response to the given query.
-
-    Query: {query}
-    Response: {response}
-
-    Provide your evaluation in JSON format with score, reason, and confidence:
-    {{
-        "score": <number between 0.0 and 1.0>,
-        "reason": "<explanation for the score>",
-        "confidence": <confidence in your evaluation from 0.0 to 1.0>
-    }}
     """,
-    callback=custom_callback
+    description="Ranks two responses by quality"
 )
 ```
 
-### Multi-language Support
+### Rule-based Grader Implementation
+Effective rule-based graders should have transparent logic, modular design, edge case handling, and consistent scoring.
 
-LLM graders support multi-language templates:
-
-```python
-from rm_gallery.core.graders.llm_grader import LLMGrader
-from rm_gallery.core.models.schema.prompt_template import PromptTemplate
-from rm_gallery.core.models.schema.message import ChatMessage
-from rm_gallery.core.models.openai_chat_model import OpenAIChatModel
-
-model = OpenAIChatModel(model="gpt-4", api_key="your-api-key")
-
-template = PromptTemplate(
-    messages={
-        "en": [
-            ChatMessage(
-                role="system",
-                content="You are an English evaluator."
-            ),
-            ChatMessage(
-                role="user",
-                content="Query: {query}\nResponse: {response}\nRate helpfulness:"
-            )
-        ],
-        "zh": [
-            ChatMessage(
-                role="system",
-                content="你是一个中文评估者。"
-            ),
-            ChatMessage(
-                role="user",
-                content="问题: {query}\n回答: {response}\n评估有用性:"
-            )
-        ]
-    }
-)
-
-grader = LLMGrader(
-    name="multilingual_evaluator",
-    mode="pointwise",
-    model=model,
-    template=template
-)
-```
-
-## Rule-based Graders
-
-Rule-based graders implement evaluation logic using predefined rules and conditions. They're ideal for objective assessments where you can define clear criteria, such as checking response length or verifying keyword presence.
-
-### When to Use Rule-based Graders
-
-Choose rule-based graders when you need to evaluate:
-- Objective criteria with clear pass/fail conditions
-- Quantifiable metrics (length, keyword presence, etc.)
-- Deterministic assessments that don't require judgment
-- Performance against well-defined standards
-
-For example, checking if a response contains an email address or meets a minimum character count.
-
-### Approach 1: Simple Functions with FunctionGrader
-
-For simple rule-based evaluations, you can use Python functions with the [FunctionGrader](../../core/graders/function_grader.py#L26-L201) class.
-
-#### Simple Length-based Grader
-
+#### Pointwise Rule-based Example: Content Quality Checker
 ```python
 from rm_gallery.core.graders.function_grader import FunctionGrader
 from rm_gallery.core.graders.schema import GraderScore
 
-async def length_grader(query: str, answer: str) -> GraderScore:
-    """Grade based on answer length."""
-    length = len(answer)
-    # Normalize score to 0-1 range (up to 100 characters)
-    score = min(length / 100.0, 1.0)
+async def content_quality_checker(query: str, response: str) -> GraderScore:
+    """Check content quality based on multiple criteria."""
+    # Define quality criteria
+    min_length = 20
+    required_sections = ["introduction", "body", "conclusion"]
+    
+    # Check length
+    length_score = min(len(response) / 100.0, 1.0)
+    length_pass = len(response) >= min_length
+    
+    # Check for required sections
+    section_scores = []
+    for section in required_sections:
+        section_found = section.lower() in response.lower()
+        section_scores.append(1.0 if section_found else 0.0)
+    
+    section_score = sum(section_scores) / len(required_sections)
+    
+    # Calculate overall score
+    overall_score = (length_score + section_score) / 2.0
+    
+    # Generate reason
+    reasons = []
+    if length_pass:
+        reasons.append(f"Length OK ({len(response)} chars)")
+    else:
+        reasons.append(f"Too short ({len(response)} chars)")
+        
+    found_sections = [sec for i, sec in enumerate(required_sections) if section_scores[i] > 0]
+    missing_sections = [sec for i, sec in enumerate(required_sections) if section_scores[i] == 0]
+    
+    if found_sections:
+        reasons.append(f"Found sections: {', '.join(found_sections)}")
+    if missing_sections:
+        reasons.append(f"Missing sections: {', '.join(missing_sections)}")
+    
     return GraderScore(
-        name="length_grader",
-        score=score,
-        reason=f"Answer length: {length} characters"
+        name="content_quality_checker",
+        score=overall_score,
+        reason="; ".join(reasons)
     )
 
 # Create the grader
-grader = FunctionGrader(
-    func=length_grader,
-    name="length_evaluator",
+content_quality_grader = FunctionGrader(
+    func=content_quality_checker,
+    name="content_quality",
     mode="pointwise"
 )
 ```
 
-#### Listwise Example with FunctionGrader
+When developing rule-based graders, consider techniques like using compiled regex for complex pattern matching, assigning different weights to criteria through weighted scoring, defining clear pass/fail thresholds, and combining multiple simple metrics into complex evaluations.
 
+#### Listwise Rule-based Example: Multi-factor Ranker
 ```python
 from rm_gallery.core.graders.function_grader import FunctionGrader
 from rm_gallery.core.graders.schema import GraderRank
 
-async def length_ranker(query: str, answer_1: str, answer_2: str) -> GraderRank:
-    """Rank answers by length."""
-    lengths = [len(answer_1), len(answer_2)]
-    # Rank from shortest to longest (1 is shortest)
-    rank = [1, 2] if lengths[0] <= lengths[1] else [2, 1]
+async def multi_factor_ranker(query: str, response_1: str, response_2: str) -> GraderRank:
+    """Rank responses based on multiple factors."""
+    
+    def calculate_score(response):
+        # Factor 1: Length (0-0.3 weight)
+        length_score = min(len(response) / 200.0, 1.0) * 0.3
+        
+        # Factor 2: Keyword density (0-0.4 weight)
+        keywords = ["accurate", "complete", "clear", "relevant"]
+        keyword_count = sum(1 for kw in keywords if kw.lower() in response.lower())
+        keyword_score = (keyword_count / len(keywords)) * 0.4
+        
+        # Factor 3: Structure indicators (0-0.3 weight)
+        structure_indicators = [". ", "! ", "? ", "\n\n"]
+        structure_count = sum(response.count(indicator) for indicator in structure_indicators)
+        structure_score = min(structure_count / 10.0, 1.0) * 0.3
+        
+        return length_score + keyword_score + structure_score
+    
+    # Calculate scores
+    score_1 = calculate_score(response_1)
+    score_2 = calculate_score(response_2)
+    
+    # Rank based on scores
+    if score_1 > score_2:
+        rank = [1, 2]
+        reason = f"Response 1 scored {score_1:.2f} vs Response 2 scored {score_2:.2f}"
+    elif score_2 > score_1:
+        rank = [2, 1]
+        reason = f"Response 2 scored {score_2:.2f} vs Response 1 scored {score_1:.2f}"
+    else:
+        rank = [1, 2]  # Tie goes to first response
+        reason = f"Both responses scored {score_1:.2f}"
+    
     return GraderRank(
-        name="length_ranker",
+        name="multi_factor_ranker",
         rank=rank,
-        reason=f"Answer lengths: {lengths[0]}, {lengths[1]} characters"
+        reason=reason
     )
 
-# Create listwise grader
-grader = FunctionGrader(
-    func=length_ranker,
-    name="length_ranking",
+# Create the grader
+multi_factor_grader = FunctionGrader(
+    func=multi_factor_ranker,
+    name="multi_factor_ranking",
     mode="listwise"
 )
 ```
 
-### Approach 2: Complex Implementations Extending BaseGrader
+## Validating Your Custom Graders
+After implementing your custom grader, it's crucial to validate that it effectively measures what you intend to measure and produces reliable results. Proper validation ensures your grader performs as expected and produces meaningful results.
 
-For more complex rule-based evaluations, you can extend the [BaseGrader](../../core/graders/base_grader.py#L15-L210) class.
+For comprehensive guidance on validating your graders and generating detailed validation reports, please refer to the [Grader Validation](../running_graders/generate_validation_reports.md) documentation. This document covers statistical analysis techniques for understanding grader behavior, validation against ground truth data, error analysis to identify specific weaknesses, and building comprehensive validation strategies.
 
-#### Regex Pattern Matching Grader
+The validation process helps you ensure your grader produces accurate results, measure consistency and reliability, identify potential biases in evaluation, and optimize grader performance based on empirical evidence.
 
-```python
-import re
-from rm_gallery.core.graders.base_grader import BaseGrader
-from rm_gallery.core.graders.schema import GraderScore
+## Running Your Custom Graders
+Once you've built and validated your custom graders, you can run them using the [GradingRunner](../running_graders/run_grading_tasks.md). This component orchestrates the execution of multiple graders across your dataset, handles concurrency, transforms data as needed, and organizes the results for analysis.
 
-class RegexPatternGrader(BaseGrader):
-    """Grader that evaluates responses based on regex pattern matching."""
-
-    def __init__(self, pattern: str, flags: int = 0, **kwargs):
-        super().__init__(**kwargs)
-        self.pattern = re.compile(pattern, flags)
-
-    async def aevaluate(self, response: str, **kwargs) -> GraderScore:
-        """Evaluate if response matches the regex pattern."""
-        match = self.pattern.search(response)
-        score = 1.0 if match else 0.0
-        reason = "Pattern matched" if match else "Pattern not found"
-
-        return GraderScore(
-            name=self.name,
-            score=score,
-            reason=reason,
-            metadata={"pattern": self.pattern.pattern}
-        )
-
-# Usage
-email_grader = RegexPatternGrader(
-    name="email_format_checker",
-    pattern=r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-)
-```
-
-#### Composite Rule-based Grader
-
-```python
-from rm_gallery.core.graders.base_grader import BaseGrader
-from rm_gallery.core.graders.schema import GraderScore
-
-class ContentQualityGrader(BaseGrader):
-    """Grader that evaluates content quality based on multiple criteria."""
-
-    def __init__(self, min_length: int = 10, required_keywords: list = None, **kwargs):
-        super().__init__(**kwargs)
-        self.min_length = min_length
-        self.required_keywords = required_keywords or []
-
-    async def aevaluate(self, response: str, **kwargs) -> GraderScore:
-        """Evaluate content quality based on length and keyword presence."""
-        # Check minimum length
-        length_check = len(response) >= self.min_length
-
-        # Check required keywords
-        keyword_checks = []
-        for keyword in self.required_keywords:
-            keyword_checks.append(keyword.lower() in response.lower())
-
-        # Calculate score
-        checks_passed = sum([length_check] + keyword_checks)
-        total_checks = 1 + len(self.required_keywords)
-        score = checks_passed / total_checks
-
-        # Generate reason
-        reasons = []
-        if not length_check:
-            reasons.append(f"Too short ({len(response)} chars)")
-        else:
-            reasons.append(f"Length OK ({len(response)} chars)")
-
-        for i, (keyword, passed) in enumerate(zip(self.required_keywords, keyword_checks)):
-            status = "found" if passed else "missing"
-            reasons.append(f"Keyword '{keyword}' {status}")
-
-        return GraderScore(
-            name=self.name,
-            score=score,
-            reason="; ".join(reasons)
-        )
-
-# Usage
-quality_grader = ContentQualityGrader(
-    name="content_quality",
-    min_length=50,
-    required_keywords=["introduction", "conclusion", "evidence"]
-)
-```
-
-## Best Practices for Custom Graders
-
-Follow these practices to ensure your custom graders are robust and reliable:
-
-### Handle Errors Gracefully
-
-Always handle potential errors in your grader implementations:
-
-```python
-from rm_gallery.core.graders.base_grader import BaseGrader
-from rm_gallery.core.graders.schema import GraderScore
-
-class RobustGrader(BaseGrader):
-    async def aevaluate(self, **kwargs) -> GraderScore:
-        try:
-            # Your evaluation logic here
-            result = self.perform_evaluation(**kwargs)
-            return result
-        except Exception as e:
-            # Return a default score with error information
-            return GraderScore(
-                name=self.name,
-                score=0.0,
-                reason=f"Evaluation failed: {str(e)}"
-            )
-```
-
-### Maintain Consistent Scoring
-
-Ensure your graders return consistent score ranges:
-
-- For binary evaluations: Use 0.0 or 1.0
-- For graded evaluations: Use a consistent scale (e.g., 0-1 or 1-5)
-- For rankings: Use positive integers starting from 1
-
-### Document Your Graders Clearly
-
-Provide clear descriptions and examples for your graders:
-
-```python
-helpfulness_grader = LLMGrader(
-    name="helpfulness",
-    description="Rates how helpful a response is on a scale from 0.0 (not helpful) to 1.0 (very helpful)",
-    # ... other parameters
-)
-```
-
-## Test Your Custom Graders
-
-Always test your custom graders with various inputs to ensure they work as expected:
-
-```python
-import asyncio
-
-async def test_grader():
-    # Test with various inputs
-    test_cases = [
-        {"query": "What is 2+2?", "response": "4"},
-        {"query": "What is 2+2?", "response": "The answer is four."},
-        {"query": "What is 2+2?", "response": "I don't know."},
-    ]
-
-    grader = YourCustomGrader()
-
-    for case in test_cases:
-        result = await grader.aevaluate(**case)
-        print(f"Score: {result.score}, Reason: {result.reason}")
-
-# Run the test
-asyncio.run(test_grader())
-```
-
-Test your graders with:
-- Typical inputs they'll encounter
-- Edge cases that might break them
-- Invalid or unexpected inputs
-- Boundary conditions for scoring
+When running graders, focus on configuring data mappers to connect your dataset fields with grader inputs, setting concurrency levels for optimal performance, combining results with aggregators for comprehensive scoring, and handling errors gracefully to prevent complete task failures.
 
 ## Next Steps
+Now that you understand how to build, validate, and run custom graders for your specific needs:
 
-Now that you've learned how to create custom graders, you can:
++ 🚀 [Run grading tasks](../running_graders/run_grading_tasks.md) to evaluate your models at scale
++ 📈 [Validate your graders](../running_graders/generate_validation_reports.md) to ensure consistent and reliable results
++ ⚙️ [Generate graders from data](generate_graders_from_data.md) to automate creation of evaluation criteria
++ 💪 [Train a grader](train_a_grader/) to build a reward model from your custom evaluations
 
-- :rocket: [Run grading tasks](../../running_graders/run_grading_tasks.md) to evaluate your models at scale
-- :gear: [Generate graders from data](generate_graders_from_data.md) to automate creation of evaluation criteria
-- :chart_with_upwards_trend: [Validate your graders](../../validating_graders/validation_workflow.md) to ensure consistent and reliable results
-- :muscle: [Train a grader](train_a_grader/) to build a reward model from your custom evaluations

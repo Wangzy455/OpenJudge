@@ -1,10 +1,10 @@
-# Contributing to AgentScope
+# Contributing to RM-Gallery
 
 ## Welcome! 🎉
 
-Thank you for your interest in contributing to AgentScope! As an open-source project, we warmly welcome and encourage
+Thank you for your interest in contributing to RM-Gallery! As an open-source project, we warmly welcome and encourage
 contributions from the community. Whether you're fixing bugs, adding new features, improving documentation, or sharing
-ideas, your contributions help make AgentScope better for everyone.
+ideas, your contributions help make RM-Gallery better for everyone.
 
 ## How to Contribute
 
@@ -14,7 +14,7 @@ To ensure smooth collaboration and maintain the quality of the project, please f
 
 Before starting your contribution, please review our development roadmap:
 
-- **Check the [Projects](https://github.com/orgs/agentscope-ai/projects/2) page** and **[Issues with `roadmap` label](https://github.com/agentscope-ai/agentscope/issues?q=is%3Aissue%20state%3Aopen%20label%3ARoadmap)** to see our planned development tasks.
+- Check the Issues to see our planned development tasks.
 
   - **If a related issue exists** and is marked as unassigned or open:
     - Please comment on the issue to express your interest in working on it
@@ -47,11 +47,11 @@ commit history and enables automatic changelog generation.
 
 **Examples:**
 ```bash
-feat(models): add support for Claude-3 model
-fix(agent): resolve memory leak in ReActAgent
+feat(graders): add support for custom rubric grading
+fix(runner): resolve concurrency issue in batch processing
 docs(readme): update installation instructions
-refactor(formatter): simplify message formatting logic
-ci(models): add unit tests for OpenAI integration
+refactor(schema): simplify grader result structure
+ci(tests): add unit tests for multimodal graders
 ```
 
 ### 3. Code Development Guidelines
@@ -76,7 +76,7 @@ pre-commit run --all-files
 
 #### b. Import Statement Guidelines
 
-AgentScope follows a **lazy import principle** to minimize resource loading:
+RM-Gallery follows a **lazy import principle** to minimize resource loading:
 
 - **DO**: Import modules only when they are actually used
   ```python
@@ -85,7 +85,7 @@ AgentScope follows a **lazy import principle** to minimize resource loading:
       # Use openai library here
   ```
 
-This approach ensures that `import agentscope` remains lightweight and doesn't load unnecessary dependencies.
+This approach ensures that `import rm_gallery` remains lightweight and doesn't load unnecessary dependencies.
 
 #### c. Unit Tests
 
@@ -102,112 +102,74 @@ This approach ensures that `import agentscope` remains lightweight and doesn't l
 - Include code examples where appropriate
 - Update the README.md if your changes affect user-facing functionality
 
-
 ## Types of Contributions
 
-### Adding New Chat Models
+### Adding New Graders
 
-AgentScope currently supports the following API providers at the chat model level: **OpenAI**, **DashScope**,
-**Gemini**, **Anthropic**, and **Ollama**. These APIs are compatible with various service providers including vLLM,
-DeepSeek, SGLang, and others.
+RM-Gallery currently supports various types of graders including text, code, math, multimodal, and agent graders.
 
-**⚠️ Important Notice:**
+To add a new grader:
 
-Adding a new chat model is not merely a model-level task. It involves multiple components including:
-- Message formatters
-- Token counters
-- Tools API integration
-
-This is a substantial amount of work. To better focus our efforts on agent capability development and maintenance,
-**the official development team currently does not plan to add support for new chat model APIs**. However, when there
-is a strong need from the developer community, we will do our best to accommodate these requirements.
-
-**If you wish to contribute a new chat model**, here are the components needed to be compatible with the
-existing `ReActAgent` in the repository:
-
-#### Required Components:
-
-1. **Chat Model Class** (under `agentscope.model`):
+1. **Determine the category**: Choose the most appropriate category (text, code, math, multimodal, agent, or format) for your grader
+2. **Create the grader class**:
    ```python
-   from agentscope.model import BaseChatModel
+   from rm_gallery.core.graders.base_grader import BaseGrader
 
-
-   class YourChatModel(BaseChatModel):
+   class YourNewGrader(BaseGrader):
        """
-       The functionalities that you need to consider include:
-       - Tools API integration
-       - Both streaming and non-streaming modes (compatible with tools API)
-       - tool_choice argument
-       - reasoning models
+       Implementation of your new grader
        """
    ```
+3. **Add appropriate tests**: Create unit tests in the corresponding test directory
+4. **Update documentation**: Add documentation for your new grader
 
-2. **Formatter Class** (under `agentscope.formatter`):
+### Adding New Generators
+
+Generators in RM-Gallery are responsible for automatically creating graders from data:
+
+1. **Create the generator class**:
    ```python
-   from agentscope.formatter import FormatterBase
+   from rm_gallery.core.generator.base_generator import BaseGenerator
 
-   class YourModelFormatter(FormatterBase):
+   class YourNewGenerator(BaseGenerator):
        """
-       Convert `Msg` objects into the format required by your API provider.
-       If your API doesn't support multi-agent scenarios (e.g. doesn't support the name field in messages), you need to
-       implement two separate formatter classes for chatbot and multi-agent scenarios.
+       Implementation of your new generator
        """
    ```
+2. **Add appropriate tests**: Create unit tests in the generator test directory
+3. **Update documentation**: Document your new generator's functionality
 
-3. **Token Counter** (under `agentscope.token`, recommended):
+### Adding New Analyzers
+
+Analyzers in RM-Gallery are used to analyze grader results:
+
+1. **Create the analyzer class**:
    ```python
-   from agentscope.token import TokenCounterBase
+   from rm_gallery.core.analyzer.base_analyzer import BaseAnalyzer
 
-   class YourTokenCounter(TokenCounterBase):
+   class YourNewAnalyzer(BaseAnalyzer):
        """
-       Implement token counting logic for your model.
-       This is recommended but not strictly required.
+       Implementation of your new analyzer
        """
    ```
+2. **Add appropriate tests**: Create unit tests in the analyzer test directory
+3. **Update documentation**: Document your new analyzer's functionality
 
-### Adding New Agents
+### Adding New Models
 
-To achieve true modularity, the `agentscope.agent` module currently aims to maintain only the **`ReActAgent`** class
-as the core implementation. We ensure all functionalities in this class are **modular, detachable, and composable**.
+RM-Gallery supports various models for grading:
 
-In AgentScope, we follow an examples-first development workflow: prototype new implementations in the `examples/`
-directory, then abstract and modularize the functionality, and finally integrate it into the core library.
+1. **Create the model class**:
+   ```python
+   from rm_gallery.core.models.base_chat_model import BaseChatModel
 
-For specialized or domain-specific agents, we recommend contributing them to the **`examples/agents`** directory:
-
-```
-examples/
-└── agents/
-    ├── main.py
-    ├── README.md  # Explain the agent's purpose and usage
-    └── ... # The other scripts
-```
-
-### Adding New Examples
-
-We highly encourage contributions of new examples that showcase the capabilities of AgentScope.
-Please add them to the `examples/` directory with a clear README explaining the purpose and usage of the example.
-
-Now our examples are organized into subdirectories based on their type:
-
-- `examples/agent/` for specialized agents
-- `examples/functionality/` for showcasing specific functionalities of AgentScope
-- `examples/game/` for game-related examples
-- `examples/evaluation/` for evaluation scripts
-- `examples/workflows/` for workflow demonstrations
-- `examples/training/` for training-related examples
-
-An example structure could be:
-
-```
-examples/
-└── {example_type}/
-    └── {example_name}/
-        ├── main.py
-        ├── README.md  # Explain the example's purpose and usage
-        └── ... # The other scripts
-```
-
+   class YourNewModel(BaseChatModel):
+       """
+       Implementation of your new model
+       """
+   ```
+2. **Add appropriate tests**: Create unit tests in the model test directory
+3. **Update documentation**: Document your new model's functionality
 
 ## Do's and Don'ts
 
@@ -229,17 +191,16 @@ examples/
 - **Don't forget to update tests**: Changes in functionality should be reflected in tests
 - **Don't break existing APIs**: Maintain backward compatibility when possible, or clearly document breaking changes
 - **Don't add unnecessary dependencies**: Keep the core library lightweight
-- **Don't bypass the lazy import principle**: This keeps AgentScope fast to import
+- **Don't bypass the lazy import principle**: This keeps RM-Gallery fast to import
 
 ## Getting Help
 
 If you need assistance or have questions:
 
-- 💬 Open a [Discussion](https://github.com/agentscope-ai/agentscope/discussions)
-- 🐛 Report bugs via [Issues](https://github.com/agentscope-ai/agentscope/issues)
-- 📧 Contact the maintainers at DingTalk or Discord (links in the README.md)
+- 🐛 Report bugs via Issues
+- 📧 Contact the maintainers
 
 
 ---
 
-Thank you for contributing to AgentScope! Your efforts help build a better tool for the entire community. 🚀
+Thank you for contributing to RM-Gallery! Your efforts help build a better tool for the entire community. 🚀

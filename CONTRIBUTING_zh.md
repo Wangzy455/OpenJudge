@@ -1,9 +1,9 @@
-# 贡献到 AgentScope
+# 贡献到 RM-Gallery
 
 ## 欢迎！🎉
 
-感谢开源社区对 AgentScope 项目的关注和支持，作为一个开源项目，我们热烈欢迎并鼓励来自社区的贡献。无论是修复错误、添加新功能、改进文档还是
-分享想法，这些贡献都能帮助 AgentScope 变得更好。
+感谢开源社区对 RM-Gallery 项目的关注和支持，作为一个开源项目，我们热烈欢迎并鼓励来自社区的贡献。无论是修复错误、添加新功能、改进文档还是
+分享想法，这些贡献都能帮助 RM-Gallery 变得更好。
 
 ## 如何贡献
 
@@ -11,9 +11,9 @@
 
 ### 1. 检查现有计划和问题
 
-在开始贡献之前，请查看我们的开发路线图：
+在开始贡献之前，请查看我们的开发任务：
 
-- **查看 [Projects](https://github.com/orgs/agentscope-ai/projects/2) 页面** 和 **[带有 `roadmap` 标签的 Issues](https://github.com/agentscope-ai/agentscope/issues?q=is%3Aissue%20state%3Aopen%20label%3ARoadmap)** 以了解我们计划的开发任务。
+- 查看 Issues 以了解我们计划的开发任务。
 
   - **如果存在相关问题** 并且标记为未分配或开放状态：
     - 请在该问题下评论，表达您有兴趣参与该任务
@@ -26,7 +26,7 @@
 
 ### 2. 提交信息格式
 
-AgentScope 遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范。这使得提交历史更易读，并能够自动生成更新日志。
+RM-Gallery 遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范。这使得提交历史更易读，并能够自动生成更新日志。
 
 **格式：**
 ```
@@ -45,11 +45,11 @@ AgentScope 遵循 [Conventional Commits](https://www.conventionalcommits.org/) �
 
 **示例：**
 ```bash
-feat(models): add support for Claude-3 model
-fix(agent): resolve memory leak in ReActAgent
+feat(graders): add support for custom rubric grading
+fix(runner): resolve concurrency issue in batch processing
 docs(readme): update installation instructions
-refactor(formatter): simplify message formatting logic
-ci(models): add unit tests for OpenAI integration
+refactor(schema): simplify grader result structure
+ci(tests): add unit tests for multimodal graders
 ```
 
 ### 3. 代码开发指南
@@ -74,7 +74,7 @@ pre-commit run --all-files
 
 #### b. 关于代码中的 Import
 
-AgentScope 遵循**懒加载导入原则**以最小化资源加载：
+RM-Gallery 遵循**懒加载导入原则**以最小化资源加载：
 
 - **推荐做法**：仅在实际使用时导入模块
   ```python
@@ -83,7 +83,7 @@ AgentScope 遵循**懒加载导入原则**以最小化资源加载：
       # 在此处使用 openai 库
   ```
 
-这种方法确保 `import agentscope` 是一个轻量操作，不会加载不必要的依赖项。
+这种方法确保 `import rm_gallery` 是一个轻量操作，不会加载不必要的依赖项。
 
 #### c. 单元测试
 
@@ -100,108 +100,74 @@ AgentScope 遵循**懒加载导入原则**以最小化资源加载：
 - 在适当的地方包含代码示例
 - 如果更改影响面向用户的功能，请更新 README.md
 
-
 ## 贡献类型
 
-### 添加新的 ChatModel
+### 添加新的评估器 (Graders)
 
-AgentScope 目前内置支持以下 API 提供商：**OpenAI**、**DashScope**、**Gemini**、**Anthropic** 和 **Ollama**。
-其中 `OpenAIChatModel` 的实现还兼容不同的服务提供商，如 vLLM，DeepSeek、SGLang 等。
+RM-Gallery 目前支持多种类型的评估器，包括文本、代码、数学、多模态和智能体评估器。
 
-**⚠️ 重要：**
+要添加一个新的评估器：
 
-添加新的 ChatModel 不仅涉及模型层面的实现，还涉及到其它组件的配合，具体包括：
-- 消息格式化器（formatter）
-- Token 计数器（token counter）
-- Tools API 集成
-
-这意味着添加一个 ChatModel 需要大量的工作来确保其与 AgentScope 生态系统的其他部分无缝集成。
-为了更好地专注于智能体能力开发和维护，**官方开发团队目前不计划添加对新 API 的支持**。
-但是当开发者社区有强烈需求时，我们将尽力满足这些需求。
-
-**对于一个 ChatModel 类的实现**，为了与仓库中 `ReActAgent` 兼容，所需要实现的组件如下：
-
-#### 必需组件：
-
-1. **ChatModel**（位于 `agentscope.model` 下）：
+1. **确定类别**：为你的评估器选择最合适的类别（文本、代码、数学、多模态、智能体或格式）
+2. **创建评估器类**：
    ```python
-   from agentscope.model import BaseChatModel
+   from rm_gallery.core.graders.base_grader import BaseGrader
 
-
-   class YourChatModel(BaseChatModel):
+   class YourNewGrader(BaseGrader):
        """
-       需要考虑的功能包括：
-       - 集成 tools API
-       - 支持流式和非流式模式，并与 tools API 兼容
-       - 支持 tool_choice 参数
-       - 考虑支持推理模型
+       你的新评估器的实现
        """
    ```
+3. **添加适当的测试**：在相应的测试目录中创建单元测试
+4. **更新文档**：为你的新评估器添加文档
 
-2. **格式化器类**（位于 `agentscope.formatter` 下）：
+### 添加新的生成器 (Generators)
+
+RM-Gallery 中的生成器负责从数据中自动创建评估器：
+
+1. **创建生成器类**：
    ```python
-   from agentscope.formatter import FormatterBase
+   from rm_gallery.core.generator.base_generator import BaseGenerator
 
-   class YourModelFormatter(FormatterBase):
+   class YourNewGenerator(BaseGenerator):
        """
-       将 `Msg` 对象转换为对应 API 提供商所需的格式。
-       如果模型 API 不支持多智能体场景（例如不支持消息中的 name 字段），需要
-       为 chatbot 和多智能体场景分别实现两个格式化器类。
+       你的新生成器的实现
        """
    ```
+2. **添加适当的测试**：在生成器测试目录中创建单元测试
+3. **更新文档**：为你的新生成器添加文档
 
-3. **Token 计数器**（位于 `agentscope.token` 下，推荐）：
+### 添加新的分析器 (Analyzers)
+
+RM-Gallery 中的分析器用于分析评估器结果：
+
+1. **创建分析器类**：
    ```python
-   from agentscope.token import TokenCounterBase
+   from rm_gallery.core.analyzer.base_analyzer import BaseAnalyzer
 
-   class YourTokenCounter(TokenCounterBase):
+   class YourNewAnalyzer(BaseAnalyzer):
        """
-       为对应模型实现 token 计数逻辑（推荐实现，非严格要求）。
+       你的新分析器的实现
        """
    ```
+2. **添加适当的测试**：在分析器测试目录中创建单元测试
+3. **更新文档**：为你的新分析器添加文档
 
-### 添加新的智能体
+### 添加新的模型 (Models)
 
-为了确保 AgentScope 中所有的功能实现都是**模块化的、可拆卸的和可组合的**，`agentscope.agent` 模块目前仅维护 **`ReActAgent`** 类作为核心实现。
+RM-Gallery 支持各种用于评估的模型：
 
-在 AgentScope 中，我们遵循示例优先的开发工作流程：
+1. **创建模型类**：
+   ```python
+   from rm_gallery.core.models.base_chat_model import BaseChatModel
 
-- 在 `examples/` 目录中初步实现新的功能
-- 然后将重要功能抽象和模块化，集成到核心库中
-- 修改 `examples/` 目录中的示例以使用新的核心功能
-
-对于专门的或特定领域的智能体，我们建议按照以下组织形式将它们贡献到 **`examples/agent`** 目录：
-
-```
-examples/
-└── agent/
-    ├── main.py
-    ├── README.md  # 解释智能体的目的和用法
-    └── ... # 其他脚本
-```
-
-### 添加新的示例
-
-
-请将它们添加到 `examples/` 目录，并附上清晰的 README 说明示例的目的和用法。
-
-目前我们的示例根据类型组织到子目录中：
-- `examples/functionality/` 用于展示 AgentScope 的特定基础功能
-- `examples/evaluation/` 用于评估
-- `examples/workflows/` 用于工作流演示
-- `examples/training/` 用于训练相关示例
-
-示例结构如下：
-
-```
-examples/
-└── {example_type}/
-    └── {example_name}/
-        ├── main.py
-        ├── README.md  # 解释示例的目的和用法
-        └── ... # 其他脚本
-```
-
+   class YourNewModel(BaseChatModel):
+       """
+       你的新模型的实现
+       """
+   ```
+2. **添加适当的测试**：在模型测试目录中创建单元测试
+3. **更新文档**：为你的新模型添加文档
 
 ## Do's and Don'ts
 
@@ -223,17 +189,16 @@ examples/
 - **不要忘记更新测试**：功能的更改应反映在测试中
 - **不要破坏现有 API**：在可能的情况下保持向后兼容性，或清楚地记录破坏性更改
 - **不要添加不必要的依赖项**：保持核心库轻量级
-- **不要绕过懒加载导入原则**：确保 AgentScope 在导入阶段不至于臃肿
+- **不要绕过懒加载导入原则**：确保 RM-Gallery 在导入阶段不至于臃肿
 
 ## 获取帮助
 
 如果需要帮助或有疑问：
 
-- 💬 开启一个 [Discussion](https://github.com/agentscope-ai/agentscope/discussions)
-- 🐛 通过 [Issues](https://github.com/agentscope-ai/agentscope/issues) 报告错误
-- 📧 通过钉钉交流群或 Discord 联系开发团队（链接在 README.md 中）
+- 🐛 通过 Issues 报告错误
+- 📧 联系维护人员
 
 
 ---
 
-感谢为 AgentScope 做出贡献！🚀
+感谢为 RM-Gallery 做出贡献！🚀

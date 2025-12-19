@@ -15,7 +15,7 @@ from rm_gallery.core.graders.base_grader import GraderMode, GraderScore
 from rm_gallery.core.graders.llm_grader import LLMGrader
 from rm_gallery.core.graders.schema import GraderError
 from rm_gallery.core.models.base_chat_model import BaseChatModel
-from rm_gallery.core.models.schema.message import ChatMessage
+from rm_gallery.core.models.schema.oai.message import ChatMessage
 from rm_gallery.core.models.schema.prompt_template import LanguageEnum, PromptTemplate
 
 # pylint: disable=line-too-long
@@ -24,15 +24,21 @@ from rm_gallery.core.models.schema.prompt_template import LanguageEnum, PromptTe
 # Pydantic models for structured LLM output
 class RubricEvaluation(BaseModel):
     """Single rubric evaluation result."""
+
     dimension: str = Field(description="评价维度名称/Name of the evaluation dimension")
     reasoning: str = Field(description="评价理由/Reasoning for the evaluation")
     check_points_passed: List[str] = Field(default=[], description="通过的检查点列表/List of check points that passed")
-    check_points_failed: List[str] = Field(default=[], description="未通过的检查点列表/List of check points that failed")
+    check_points_failed: List[str] = Field(
+        default=[], description="未通过的检查点列表/List of check points that failed"
+    )
 
 
 class RubricsEvaluationOutput(BaseModel):
     """Structured output model for rubrics evaluation."""
-    dimension_evaluations: List[RubricEvaluation] = Field(description="各维度评估结果/Evaluation results for each dimension")
+
+    dimension_evaluations: List[RubricEvaluation] = Field(
+        description="各维度评估结果/Evaluation results for each dimension"
+    )
 
 
 # Chinese Prompt Template
@@ -76,7 +82,7 @@ RUBRICS_EVALUATION_PROMPT_ZH = """你是一个专业的Agent表现评估专家�
 
 ### 输出结构示例：
 
-```json
+```
 {{
   "dimension_evaluations": [
     {{
@@ -150,7 +156,7 @@ Please independently evaluate the Agent's performance for **each evaluation dime
 
 ### Output Structure Example:
 
-```json
+```
 {{
   "dimension_evaluations": [
     {{
@@ -332,7 +338,9 @@ class RubricsBasedTrajectoryPerformance(LLMGrader):
             # Ensure score is in [0, 1] range
             normalized_score = max(0.0, min(1.0, normalized_score))
 
-            logger.debug(f"平均总分计算: {sum(dimension_scores.values()):.4f} / {len(dimension_scores)} = {normalized_score:.4f}")
+            logger.debug(
+                f"平均总分计算: {sum(dimension_scores.values()):.4f} / {len(dimension_scores)} = {normalized_score:.4f}"
+            )
 
             # Generate reason string
             if language == LanguageEnum.ZH:
@@ -401,7 +409,6 @@ class RubricsBasedTrajectoryPerformance(LLMGrader):
             >>> model = OpenAIChatModel(api_key="...", model="gpt-4o")
         """
 
-        
         super().__init__(
             name="rubrics_based_trajectory_performance",
             mode=GraderMode.POINTWISE,
@@ -545,20 +552,14 @@ class RubricsBasedTrajectoryPerformance(LLMGrader):
         # Validate rubrics
         if not rubrics or not isinstance(rubrics, list):
             logger.warning("Invalid or empty rubrics, must be a list")
-            return GraderError(
-                name=self.name,
-                error="Invalid or empty rubrics, must be a list"
-            )
+            return GraderError(name=self.name, error="Invalid or empty rubrics, must be a list")
 
         # Extract information from messages
         query, tool_calls_str, final_response = self._extract_info_from_messages(messages)
 
         if not query or not tool_calls_str or not final_response:
             logger.warning("Empty query or tool_calls or final response, returning error")
-            return GraderError(
-                name=self.name,
-                error="Empty query or tool_calls or final_response"
-            )
+            return GraderError(name=self.name, error="Empty query or tool_calls or final_response")
 
         try:
             # Convert rubrics to string for prompt
@@ -581,8 +582,4 @@ class RubricsBasedTrajectoryPerformance(LLMGrader):
 
         except Exception as e:
             logger.error(f"Error evaluating {self.name}: {e}")
-            return GraderError(
-                name=self.name,
-                error=str(e)
-            )
-
+            return GraderError(name=self.name, error=str(e))

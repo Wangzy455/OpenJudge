@@ -9,6 +9,8 @@ correctness checking approach with timeout handling.
 import json
 import traceback
 
+from loguru import logger
+
 from .utils import check_correctness as apps_check_correctness
 
 
@@ -33,7 +35,7 @@ def compute_score(completion, test_cases, continuous=False):
             if not isinstance(test_cases, dict):
                 test_cases = json.loads(test_cases)
         except Exception as e:
-            print(f"Error:{e}")
+            logger.error(f"Error:{e}")
 
         # Complete check on all in-out pairs first. If there is no failure, per-sample test can be skipped.
         try:

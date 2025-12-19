@@ -28,6 +28,7 @@ from typing import Any
 from unittest.mock import mock_open, patch
 
 import numpy as np
+from loguru import logger
 from pyext import RuntimeModule
 
 
@@ -132,20 +133,19 @@ def clean_traceback(error_traceback):
         str: Cleaned traceback string
     """
     file_start = error_traceback.find('File "<string>"')
-    # print(file_start)
+    logger.info(f"file_start = {file_start}")
     error_traceback = "Traceback (most recent call last):\n  " + error_traceback[file_start:]
     return error_traceback
 
 
 # pylint: disable=too-many-statements, too-many-return-statements
-def run_test(in_outs, test=None, debug=False, timeout=15):
+def run_test(in_outs, test=None, timeout=15):
     """
     Run test cases against a generated code solution.
 
     Args:
         in_outs (dict): Dictionary containing inputs and expected outputs
         test (str, optional): Generated code solution to test
-        debug (bool): Enable debug printing
         timeout (int): Timeout in seconds for each test case
 
     Returns:
@@ -158,8 +158,7 @@ def run_test(in_outs, test=None, debug=False, timeout=15):
     tmp = None
     which_type = None
 
-    if debug:
-        print(f"start = {datetime.now().time()}")
+    logger.debug(f"start = {datetime.now().time()}")
 
     if in_outs:
         if in_outs.get("fn_name") is None:
@@ -169,8 +168,7 @@ def run_test(in_outs, test=None, debug=False, timeout=15):
             which_type = CODE_TYPE.call_based  # Call-based
             method_name = in_outs["fn_name"]
 
-    if debug:
-        print(f"loaded input_output = {datetime.now().time()}")
+    logger.debug(f"loaded input_output = {datetime.now().time()}")
 
     if test is None:
         raise AssertionError("should not happen: test code is none")
@@ -212,13 +210,12 @@ import sys
 import json
 sys.setrecursionlimit(6*10**5)
 """
-    if debug:
-        print(f"loading test code = {datetime.now().time()}")
+
+    logger.debug(f"loading test code = {datetime.now().time()}")
 
     if which_type == CODE_TYPE.call_based:
         sol += test
-        if debug:
-            print(f"sol = {sol}")
+        logger.debug(f"sol = {sol}")
         signal.alarm(timeout)
         try:
             tmp_sol = RuntimeModule.from_string("tmp_sol", "", sol)
@@ -227,8 +224,8 @@ sys.setrecursionlimit(6*10**5)
         except Exception as e:
             signal.alarm(0)
             error_traceback = traceback.format_exc()
-            if debug:
-                print(f"type 0 compilation error = {e}")
+
+            logger.debug(f"type 0 compilation error = {e}")
             results.append(-2)
             return results, {
                 "error": repr(e),
@@ -276,8 +273,7 @@ sys.setrecursionlimit(6*10**5)
         tmp_test = new_test
 
         sol += tmp_test
-        if debug:
-            print(f"sol = {sol}")
+        logger.debug(f"sol = {sol}")  # Debug statement removed
         method_name = "code"
         signal.alarm(timeout)
         try:
@@ -287,8 +283,8 @@ sys.setrecursionlimit(6*10**5)
         except Exception as e:
             signal.alarm(0)
             error_traceback = traceback.format_exc()
-            if debug:
-                print(f"type 1 compilation error = {e}")
+
+            logger.debug(f"type 1 compilation error = {e}")
             results.append(-2)
             return results, {
                 "error": repr(e),
@@ -297,8 +293,8 @@ sys.setrecursionlimit(6*10**5)
                 "traceback": clean_traceback(error_traceback),
             }
         signal.alarm(0)
-    if debug:
-        print(f"get method = {datetime.now().time()}")
+
+    logger.debug(f"get method = {datetime.now().time()}")
 
     try:
         method = getattr(
@@ -307,9 +303,8 @@ sys.setrecursionlimit(6*10**5)
         )  # get_attr second arg must be str
     except Exception:
         signal.alarm(0)
-        error_traceback = traceback.format_exc()
         error_info = sys.exc_info()
-        print(f"unable to get function error = {error_info}")
+        logger.debug(f"unable to get function error = {error_info}")
         results.append(-2)
         return results, {
             "error": repr(error_info),
@@ -355,13 +350,11 @@ sys.setrecursionlimit(6*10**5)
                 ]
         except Exception:
             pass
-
-        if debug:
-            print(
-                f"time: {datetime.now().time()}"
-                f"testing index = {index}"
-                f"inputs = {inputs}, {type(inputs)}. type = {which_type}",
-            )
+        logger.info(
+            f"time: {datetime.now().time()}"
+            f"testing index = {index}"
+            f"inputs = {inputs}, {type(inputs)}. type = {which_type}",
+        )
         if which_type == CODE_TYPE.call_based:  # Call-based
             signal.alarm(timeout)
             faulthandler.enable()
@@ -404,10 +397,8 @@ sys.setrecursionlimit(6*10**5)
                 signal.alarm(0)
                 error_traceback = traceback.format_exc()
                 faulthandler.disable()
-                if debug:
-                    print(
-                        f"Standard input runtime error or time limit exceeded error = {e}",
-                    )
+
+                logger.debug(f"Standard input runtime error or time limit exceeded error = {e}")
                 results.append(-1)
                 return results, {
                     "error": repr(e),
@@ -415,11 +406,10 @@ sys.setrecursionlimit(6*10**5)
                 }
             faulthandler.disable()
             signal.alarm(0)
-            if debug:
-                print(
-                    f"outputs = {output}, test outputs = {in_outs['outputs'][index]}, "
-                    f"inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]}",
-                )
+            logger.info(
+                f"outputs = {output}, test outputs = {in_outs['outputs'][index]}, "
+                f"inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]}",
+            )
         elif which_type == CODE_TYPE.standard_input:  # Standard input
             faulthandler.enable()
             passed = False
@@ -442,9 +432,7 @@ sys.setrecursionlimit(6*10**5)
                     # runtime error or took too long
                     signal.alarm(0)
                     error_traceback = traceback.format_exc()
-                    print(
-                        f"Call-based runtime error or time limit exceeded error = {repr(e)}{e}",
-                    )
+                    logger.debug(f"Call-based runtime error or time limit exceeded error = {repr(e)}{e}")
                     results.append(-1)
                     return results, {
                         "error": repr(e),
@@ -454,26 +442,25 @@ sys.setrecursionlimit(6*10**5)
             raw_true_output = output[0]
             raw_true_output_copy = truncatefn(raw_true_output, 200)
             output = raw_true_output.splitlines()
+
             if not passed:
-                if debug:
-                    nl = "\n"
-                    if not isinstance(inputs, list):
-                        print(
-                            f"not passed output = {output}, test outputs = {in_outs['outputs'][index]}, "
-                            f"inputs = {inputs.replace(nl, ' new-line ')}, {type(inputs)}, "
-                            f"{output == [in_outs['outputs'][index]]}",
-                        )
-                    else:
-                        print(
-                            f"not passed output = {output}, test outputs = {in_outs['outputs'][index]}, "
-                            f"inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]}",
-                        )
+                nl = "\n"
+                if not isinstance(inputs, list):
+                    logger.info(
+                        f"not passed output = {output}, test outputs = {in_outs['outputs'][index]}, "
+                        f"inputs = {inputs.replace(nl, ' new-line ')}, {type(inputs)}, "
+                        f"{output == [in_outs['outputs'][index]]}",
+                    )
+                else:
+                    logger.info(
+                        f"not passed output = {output}, test outputs = {in_outs['outputs'][index]}, "
+                        f"inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]}",
+                    )
                 continue
 
-            if passed and debug:
-                print(
-                    f"==> output = {output}, test outputs = {in_outs['outputs'][index]}",
-                )
+            # reference sequences are expressed as lists not tuples
+            if passed:
+                logger.info(f"==> output = {output}, test outputs = {in_outs['outputs'][index]}")
 
             if custom_compare_(output, in_outs["outputs"][index]):
                 tmp_result = True
@@ -492,8 +479,7 @@ sys.setrecursionlimit(6*10**5)
                     if isinstance(output[0], str):
                         tmp_result = tmp_result or ([e.strip() for e in output] == in_outs["outputs"][index])
             except Exception as e:
-                if debug:
-                    print(f"Failed check1 exception = {e}")
+                logger.debug(f"Failed check1 exception = {e}")
 
             if tmp_result is True:
                 results.append(tmp_result)
@@ -519,9 +505,10 @@ sys.setrecursionlimit(6*10**5)
                 tmp_result = output == [in_outs["outputs"][index]]
                 if isinstance(in_outs["outputs"][index], list):
                     tmp_result = tmp_result or (output == in_outs["outputs"][index])
+
             except Exception as e:
-                if debug:
-                    print(f"Failed check2 exception = {e}")
+
+                logger.debug(f"Failed check2 exception = {e}")
 
             if tmp_result is True:
                 results.append(tmp_result)
@@ -531,33 +518,20 @@ sys.setrecursionlimit(6*10**5)
             if isinstance(output, list):
                 output = list(filter(len, output))
 
-            if debug:
-                nl = "\n"
-                if not isinstance(inputs, list):
-                    print(
-                        f"@1 output = {output}, test outputs = {in_outs['outputs'][index]}, "
-                        f"inputs = {inputs.replace(nl, ' new-line ')}, {type(inputs)}, "
-                        f"{output == [in_outs['outputs'][index]]} {tmp_result=}",
-                    )
-                else:
-                    print(
-                        f"@1 output = {output}, test outputs = {in_outs['outputs'][index]}, "
-                        f"inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]} {tmp_result=}",
-                    )
+            nl = "\n"
+            if not isinstance(inputs, list):
+                logger.info(
+                    f"@1 output = {output}, test outputs = {in_outs['outputs'][index]}, "
+                    f"inputs = {inputs.replace(nl, ' new-line ')}, {type(inputs)}, "
+                    f"{output == [in_outs['outputs'][index]]} {tmp_result=}",
+                )
+            else:
+                logger.info(
+                    f"@1 output = {output}, test outputs = {in_outs['outputs'][index]}, "
+                    f"inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]} {tmp_result=}",
+                )
 
-            if debug:
-                print(f"{tmp_result=} @a")
-
-            try:
-                tmp_result = output == [in_outs["outputs"][index]]
-                if isinstance(in_outs["outputs"][index], list):
-                    tmp_result = tmp_result or (output == in_outs["outputs"][index])
-            except Exception as e:
-                if debug:
-                    print(f"Failed check3 exception = {e}")
-
-            if debug:
-                print(f"{tmp_result=} @b")
+            logger.debug(f"{tmp_result=} @a")
 
             try:
                 all_ints = all(
@@ -565,26 +539,24 @@ sys.setrecursionlimit(6*10**5)
                     for e1, e2 in zip(output, in_outs["outputs"][index])
                 )
                 if not all_ints:
-                    if debug:
-                        print(
-                            [
-                                combined_int_check(e1) and combined_int_check(e2)
-                                for e1, e2 in zip(
-                                    output,
-                                    in_outs["outputs"][index],
-                                )
-                            ],
-                        )
+                    logger.debug(
+                        [
+                            combined_int_check(e1) and combined_int_check(e2)
+                            for e1, e2 in zip(
+                                output,
+                                in_outs["outputs"][index],
+                            )
+                        ],
+                    )
                     output_float = [float(e) for e in output]
                     gt_float = [float(e) for e in in_outs["outputs"][index]]
                     tmp_result = tmp_result or (
                         (len(output_float) == len(gt_float)) and np.allclose(output_float, gt_float)
                     )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed check3 exception = {e}")
 
-            if debug:
-                print(f"{tmp_result=} @c")
+            logger.debug(f"{tmp_result=} @b")
 
             try:
                 if isinstance(output[0], list):
@@ -608,8 +580,7 @@ sys.setrecursionlimit(6*10**5)
                 results.append(tmp_result)
                 continue
 
-            if debug:
-                print(f"{tmp_result=} @d")
+            logger.debug(f"{tmp_result=} @d")
             # try by converting the stuff into split up list
             if isinstance(in_outs["outputs"][index], list):
                 for tmp_index, i in enumerate(in_outs["outputs"][index]):
@@ -619,22 +590,19 @@ sys.setrecursionlimit(6*10**5)
                     in_outs["outputs"][index].split(),
                 )
 
-            if debug:
-                print(f"{tmp_result=} @e")
+            logger.debug(f"{tmp_result=} @e")
 
             try:
                 tmp_result = output == in_outs["outputs"][index]
             except Exception as e:
-                if debug:
-                    print(f"Failed check4 exception = {e}")
+                logger.debug(f"Failed check4 exception = {e}")
                 continue
 
             if tmp_result is True:
                 results.append(tmp_result)
                 continue
 
-            if debug:
-                print(f"{tmp_result=} @f")
+            logger.debug(f"{tmp_result=} @f")
 
             # try by converting the output into a split up list too
             if isinstance(output, list):
@@ -648,11 +616,9 @@ sys.setrecursionlimit(6*10**5)
                 output = list(filter(len, output))
                 output = set(output)
 
-            if debug:
-                print(f"{tmp_result=} @g")
+            logger.debug(f"{tmp_result=} @g")
 
-            if tmp_result is True and debug:
-                print("PASSED")
+            logger.debug("PASSED")
 
             results.append(tmp_result)
             if tmp_result is not True:
@@ -664,21 +630,20 @@ sys.setrecursionlimit(6*10**5)
                     "error_message": "Wrong Answer",
                 }
 
-            if debug:
-                nl = "\n"
-                if not isinstance(inputs, list):
-                    print(
-                        f"@2 output = {output}, test outputs = {in_outs['outputs'][index]},"
-                        f"inputs = {inputs.replace(nl, ' new-line ')}, {type(inputs)}, "
-                        f"{output == [in_outs['outputs'][index]]}",
-                    )
-                else:
-                    print(
-                        f"@2 output = {output}, test outputs = {in_outs['outputs'][index]}, "
-                        f"inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]}",
-                    )
+            nl = "\n"
+            if not isinstance(inputs, list):
+                logger.info(
+                    f"@2 output = {output}, test outputs = {in_outs['outputs'][index]},"
+                    f"inputs = {inputs.replace(nl, ' new-line ')}, {type(inputs)}, "
+                    f"{output == [in_outs['outputs'][index]]}"
+                )
+            else:
+                logger.info(
+                    f"@2 output = {output}, test outputs = {in_outs['outputs'][index]}, "
+                    f"inputs = {inputs}, {type(inputs)}, {output == [in_outs['outputs'][index]]}"
+                )
 
-                print(f"results = {results}")
+            logger.info(f"results = {results}")
 
     return results, {}
 

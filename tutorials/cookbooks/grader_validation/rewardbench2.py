@@ -27,9 +27,8 @@ from rm_gallery.core.analyzer.base_analyzer import AnalysisResult, BaseAnalyzer
 from rm_gallery.core.graders.base_grader import BaseGrader, GraderMode
 from rm_gallery.core.graders.schema import GraderScore
 from rm_gallery.core.models.openai_chat_model import OpenAIChatModel
-from rm_gallery.core.models.schema.message import ChatMessage
+from rm_gallery.core.models.schema.oai.message import ChatMessage
 from rm_gallery.core.models.schema.prompt_template import PromptTemplate
-
 
 # ============================================================================
 # Structured Output Models
