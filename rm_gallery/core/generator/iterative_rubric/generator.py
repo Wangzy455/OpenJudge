@@ -254,6 +254,7 @@ class IterativeRubricsGenerator(LLMGraderGenerator):
 
         # Prepare grader kwargs
         grader_kwargs = {
+            "name": self.config.grader_name,
             "model": self.config.model,
             "mode": self.config.grader_mode,
             "rubrics": rubrics,

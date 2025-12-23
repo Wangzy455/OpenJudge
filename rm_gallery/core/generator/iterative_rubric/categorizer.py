@@ -262,11 +262,11 @@ class LLMRubricCategorizer:
                 structured_model=RubricCategorizationOutput,
             )
 
-            # Get structured data from metadata
-            if not response_obj.metadata or "categories" not in response_obj.metadata:
+            # Get structured data from parsed
+            if not response_obj.parsed or "categories" not in response_obj.parsed:
                 raise ValueError("No categories in structured response")
 
-            categories = response_obj.metadata["categories"]
+            categories = response_obj.parsed["categories"]
 
             # Generate directly usable string list
             ready_to_use_list = []

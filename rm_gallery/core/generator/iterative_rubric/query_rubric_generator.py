@@ -751,18 +751,18 @@ class QuerySpecificRubricGenerator:
             )
 
             # Get structured data from metadata
-            if not chat_response.metadata:
+            if not chat_response.parsed:
                 raise ValueError("No metadata in response")
 
-            if "rubrics" not in chat_response.metadata:
+            if "rubrics" not in chat_response.parsed:
                 logger.error(
-                    f"Missing 'rubrics' key in metadata. Available keys: {list(chat_response.metadata.keys())}",
+                    f"Missing 'rubrics' key in metadata. Available keys: {list(chat_response.parsed.keys())}",
                 )
                 raise KeyError(
-                    f"'rubrics' key not found in response.metadata. Available keys: {list(chat_response.metadata.keys())}",
+                    f"'rubrics' key not found in response.parsed. Available keys: {list(chat_response.parsed.keys())}",
                 )
 
-            rubrics = chat_response.metadata["rubrics"]
+            rubrics = chat_response.parsed["rubrics"]
 
             if not rubrics or len(rubrics) == 0:
                 raise ValueError("No rubrics generated")
@@ -834,18 +834,18 @@ class QuerySpecificRubricGenerator:
             )
 
             # Get structured data from metadata
-            if not chat_response.metadata:
+            if not chat_response.parsed:
                 raise ValueError("No metadata in response")
 
-            if "rubrics" not in chat_response.metadata:
+            if "rubrics" not in chat_response.parsed:
                 logger.error(
-                    f"Missing 'rubrics' key in metadata. Available keys: {list(chat_response.metadata.keys())}",
+                    f"Missing 'rubrics' key in metadata. Available keys: {list(chat_response.parsed.keys())}",
                 )
                 raise KeyError(
-                    f"'rubrics' key not found in response.metadata. Available keys: {list(chat_response.metadata.keys())}",
+                    f"'rubrics' key not found in response.parsed. Available keys: {list(chat_response.parsed.keys())}",
                 )
 
-            revised_rubrics = chat_response.metadata["rubrics"]
+            revised_rubrics = chat_response.parsed["rubrics"]
 
             if not revised_rubrics or len(revised_rubrics) == 0:
                 raise ValueError("No revised rubrics generated")
@@ -906,9 +906,9 @@ class QuerySpecificRubricGenerator:
             )
             logger.debug(f"Pointwise evaluation response: {response_obj}")
 
-            # Get structured data from metadata
-            if response_obj.metadata and "score" in response_obj.metadata:
-                score = response_obj.metadata["score"]
+            # Get structured data from parsed
+            if response_obj.parsed and "score" in response_obj.parsed:
+                score = response_obj.parsed["score"]
                 score = max(self.min_score, min(self.max_score, score))
             else:
                 score = self.min_score
@@ -955,9 +955,9 @@ class QuerySpecificRubricGenerator:
             )
             logger.debug(f"Listwise evaluation response: {response_obj}")
 
-            # Get structured data from metadata
-            if response_obj.metadata and "rank" in response_obj.metadata:
-                rank_values = response_obj.metadata["rank"]
+            # Get structured data from parsed
+            if response_obj.parsed and "rank" in response_obj.parsed:
+                rank_values = response_obj.parsed["rank"]
 
                 # Validate rank values
                 if len(rank_values) == len(responses):
