@@ -540,17 +540,17 @@ async def custom_evaluation_with_batch_processing(spans_df):
 
 ## Tips
 
-- :bulb: **Grader Error Handling**: Always check for `GraderError` results when using graders. These indicate evaluation failures that should be handled gracefully rather than accessing non-existent attributes.
+- **Grader Error Handling**: Always check for `GraderError` results when using graders. These indicate evaluation failures that should be handled gracefully rather than accessing non-existent attributes.
 
-- :bulb: **Grader Result Types**: Understand the different result types (`GraderScore`, `GraderRank`, `GraderError`) that graders can return and handle each appropriately in your integration code.
+- **Grader Result Types**: Understand the different result types (`GraderScore`, `GraderRank`, `GraderError`) that graders can return and handle each appropriately in your integration code.
 
-- :bulb: **Runner Concurrency**: Use the `max_concurrency` parameter in `GradingRunner` to control how many graders run simultaneously, preventing resource exhaustion.
+- **Runner Concurrency**: Use the `max_concurrency` parameter in `GradingRunner` to control how many graders run simultaneously, preventing resource exhaustion.
 
-- :bulb: **Batch Processing with Runner**: For evaluating multiple data points, use `GradingRunner.arun()` to process them in batches rather than calling graders individually for better performance.
+- **Batch Processing with Runner**: For evaluating multiple data points, use `GradingRunner.arun()` to process them in batches rather than calling graders individually for better performance.
 
-- :bulb: **Runner Aggregators**: Take advantage of built-in aggregators in `GradingRunner` rather than implementing your own result aggregation logic.
+- **Runner Aggregators**: Take advantage of built-in aggregators in `GradingRunner` rather than implementing your own result aggregation logic.
 
-- :bulb: **Async Grader Methods**: Always use the async methods (e.g., `aevaluate`) when working with graders to ensure proper asynchronous execution.
+- **Async Grader Methods**: Always use the async methods (e.g., `aevaluate`) when working with graders to ensure proper asynchronous execution.
 
 ## Related Resources
 

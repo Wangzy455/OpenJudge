@@ -54,6 +54,11 @@ nav:
       - Refine Data Quality: applications/data_refinement.md
       - Pairwise Model Evaluation: applications/select_rank.md
 
+  - Integrations:
+      - LangSmith: integrations/langsmith.md
+      - Langfuse: integrations/langfuse.md
+      - Phoenix: integrations/arize_phoenix.md
+
   - Community:
       - Contribute to RM Gallery: community/contributing.md
       - Documentation Style Guide: community/style-guide.md
