@@ -140,7 +140,7 @@ POINTWISE_EVALUATION_PROMPT_ZH = """
 {rubrics}
 
 查询: {query}
-回答: {answer}
+回答: {response}
 
 评分范围: {min_score} 到 {max_score}
 
@@ -163,7 +163,7 @@ Evaluation Criteria:
 {rubrics}
 
 Query: {query}
-Response: {answer}
+Response: {response}
 
 Score Range: {min_score} to {max_score}
 
@@ -190,13 +190,14 @@ LISTWISE_EVALUATION_PROMPT_ZH = """
 查询: {query}
 
 所有回答:
-{answer}
+{responses}
 
 ## 任务要求
-- 根据评估标准，对所有{num_responses}个回答进行质量评估
+- 根据评估标准，对所有回答进行质量评估
 - 为每个回答分配一个rank值，数值越小表示质量越好（rank=1是最好的）
 - 保持回答的原始顺序，只输出每个回答对应的rank值
 - 重要：任何两个回答的rank值都不能相同，必须严格区分质量差异，不允许平分
+- 重要：rank值必须是从1开始的连续整数。例如2个回答用[1,2]，3个回答用[1,2,3]
 
 ## 示例
 假设有三个回答：
@@ -216,7 +217,7 @@ LISTWISE_EVALUATION_PROMPT_ZH = """
 
 重要提醒：
 1. 数组中第i个位置的数值是第i个回答的rank值，数值越小表示质量越好（rank=1是最好的）
-2. 所有rank值必须是正整数，不能是小数或其他格式
+2. 所有rank值必须是从1到N的连续正整数（N为回答数量），不能跳过任何数字
 """
 
 LISTWISE_EVALUATION_PROMPT_EN = """
@@ -228,13 +229,14 @@ Evaluation Criteria:
 Query: {query}
 
 All Responses:
-{answer}
+{responses}
 
 ## Task Requirements
-- Evaluate all {num_responses} responses based on the evaluation criteria
+- Evaluate all responses based on the evaluation criteria
 - Assign a rank value to each response, smaller values indicate better quality (rank=1 is best)
 - Keep responses in original order, only output corresponding rank values
 - Important: No two responses can have the same rank value, must strictly distinguish quality differences, no ties allowed
+- Important: Rank values must be consecutive integers starting from 1. For example, use [1,2] for 2 responses, [1,2,3] for 3 responses
 
 ## Example
 Assume three responses:
@@ -254,7 +256,7 @@ Please output strictly in the following JSON format:
 
 Important reminders:
 1. The value at position i in the array is the rank value for the i-th response, smaller values indicate better quality (rank=1 is best)
-2. All rank values must be positive integers, not decimals or other formats
+2. All rank values must be consecutive positive integers from 1 to N (where N is the number of responses), no numbers can be skipped
 """
 
 # ========== Pointwise Revision Prompts ==========
@@ -894,7 +896,7 @@ class QuerySpecificRubricGenerator:
                 "language": self.language,
                 "rubrics": rubrics_text,
                 "query": query,
-                "answer": response,
+                "response": response,
                 "min_score": self.min_score,
                 "max_score": self.max_score,
             }
@@ -944,8 +946,7 @@ class QuerySpecificRubricGenerator:
                 "language": self.language,
                 "rubrics": rubrics_text,
                 "query": query,
-                "answer": responses_text,
-                "num_responses": len(responses),
+                "responses": responses_text,
             }
 
             # Use ChatTemplate with structured output

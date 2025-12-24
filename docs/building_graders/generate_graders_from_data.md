@@ -18,7 +18,7 @@ Theme: Accuracy
 - Tip: The response should contain factually correct information
 - Tip: Claims should be verifiable and not contradict established knowledge
 
-Theme: Completeness  
+Theme: Completeness
 - Tip: The response should address all parts of the question
 - Tip: Important details should not be omitted
 ```
@@ -70,9 +70,11 @@ Suppose you have a dataset of query-response pairs with quality labels (scores o
 | Mode | Config Class | Use Case | Data Format | Output |
 |------|--------------|----------|-------------|--------|
 | **Pointwise** | `IterativePointwiseRubricsGeneratorConfig` | Score individual responses (e.g., 1-5 rating) | `label_score` | `score`, `reason` |
+| **Pairwise** | `IterativeListwiseRubricsGeneratorConfig` | Compare two responses (A vs B) | `label_rank` (2 items) | `ranking`, `reason` |
 | **Listwise** | `IterativeListwiseRubricsGeneratorConfig` | Rank multiple responses (e.g., A > B > C) | `label_rank` | `ranking`, `reason` |
 
-In the following example, we'll use **Pointwise** mode to build a code explanation grader.
+!!! note "Pairwise vs Listwise"
+    Pairwise is a special case of Listwise with exactly 2 responses. Use the same `IterativeListwiseRubricsGeneratorConfig` for both.
 
 
 ## Complete Example: Build a Code Review Grader (Pointwise)
@@ -136,7 +138,7 @@ async def main():
     # Generate the grader
     generator = IterativeRubricsGenerator(config)
     grader = await generator.generate(dataset)
-    
+
     return grader
 
 grader = asyncio.run(main())
@@ -179,7 +181,7 @@ Now use the grader to evaluate new code explanations:
 async def evaluate_new_response():
     result = await grader.aevaluate(
         query="Explain what this Python code does: `map(str, [1, 2, 3])`",
-        answer="The map function applies str to each element in the list, converting integers to strings. The result is a map object that yields '1', '2', '3' when iterated."
+        response="The map function applies str to each element in the list, converting integers to strings. The result is a map object that yields '1', '2', '3' when iterated."
     )
     print(result)
 
@@ -202,7 +204,7 @@ GraderScore(
 # Evaluate a poor response
 result = await grader.aevaluate(
     query="Explain what this Python code does: `map(str, [1, 2, 3])`",
-    answer="It maps things."
+    response="It maps things."
 )
 print(result)
 ```
@@ -216,6 +218,182 @@ GraderScore(
     reason="The response 'It maps things.' is extremely vague and lacks any meaningful explanation of what the code does. It fails to identify the type of Python code (e.g., the use of the `map` function), explain its purpose, describe the transformation applied, or provide any contextual clarity. The explanation is insufficient and does not meet even the most basic criteria for understanding or explaining the code."
 )
 ```
+
+## Complete Example: Build a Code Solution Comparator (Pairwise)
+
+Let's build a grader that compares two code implementations and determines which solution is better. This is useful for code review, interview assessment, or selecting the best implementation from multiple candidates.
+
+### Step 1: Prepare Pairwise Data
+
+```python
+dataset = [
+    {
+        "query": "Write a function to check if a string is a palindrome.",
+        "responses": [
+            """def is_palindrome(s):
+    s = s.lower().replace(" ", "")
+    return s == s[::-1]""",
+            """def is_palindrome(s):
+    for i in range(len(s)):
+        if s[i] != s[len(s)-1-i]:
+            return False
+    return True"""
+        ],
+        "label_rank": [1, 2]  # Solution 1 is better: concise, handles case/spaces
+    },
+    {
+        "query": "Implement a function to find the maximum element in a list.",
+        "responses": [
+            """def find_max(lst):
+    if not lst:
+        return None
+    return max(lst)""",
+            """def find_max(lst):
+    m = lst[0]
+    for x in lst:
+        if x > m:
+            m = x
+    return m"""
+        ],
+        "label_rank": [1, 2]  # Solution 1 is better: handles edge case, uses built-in
+    },
+    {
+        "query": "Write a function to merge two sorted lists into one sorted list.",
+        "responses": [
+            """def merge(a, b):
+    return sorted(a + b)""",
+            """def merge(a, b):
+    result = []
+    i = j = 0
+    while i < len(a) and j < len(b):
+        if a[i] <= b[j]:
+            result.append(a[i])
+            i += 1
+        else:
+            result.append(b[j])
+            j += 1
+    result.extend(a[i:])
+    result.extend(b[j:])
+    return result"""
+        ],
+        "label_rank": [2, 1]  # Solution 2 is better: O(n) vs O(n log n), proper merge algorithm
+    },
+    {
+        "query": "Implement a function to count word frequency in a text.",
+        "responses": [
+            """def word_freq(text):
+    words = text.lower().split()
+    freq = {}
+    for w in words:
+        freq[w] = freq.get(w, 0) + 1
+    return freq""",
+            """from collections import Counter
+def word_freq(text):
+    return Counter(text.lower().split())"""
+        ],
+        "label_rank": [2, 1]  # Solution 2 is better: idiomatic, uses standard library
+    },
+    # ... more examples (recommend 50-100)
+]
+```
+
+!!! tip "Label Format"
+    - `label_rank` contains the rank for each solution (smaller = better)
+    - `[1, 2]` means the first solution is better than the second
+    - `[2, 1]` means the second solution is better than the first
+
+### Step 2: Configure and Run the Generator
+
+```python
+import asyncio
+from rm_gallery.core.generator.iterative_rubric.generator import (
+    IterativeRubricsGenerator,
+    IterativeListwiseRubricsGeneratorConfig  # Use Listwise config for pairwise
+)
+from rm_gallery.core.generator.iterative_rubric.query_rubric_generator import (
+    LISTWISE_EVALUATION_TEMPLATE
+)
+from rm_gallery.core.models import OpenAIChatModel
+
+async def main():
+    # Configure the generator (Pairwise uses Listwise config)
+    config = IterativeListwiseRubricsGeneratorConfig(
+        grader_name="code_solution_comparator",
+        model=OpenAIChatModel(model="qwen3-32b"),
+        custom_evaluation_prompt=LISTWISE_EVALUATION_TEMPLATE,
+        query_specific_generate_number=2,
+        enable_categorization=True,
+        categories_number=3
+    )
+
+    # Generate the grader
+    generator = IterativeRubricsGenerator(config)
+    grader = await generator.generate(dataset)
+
+    return grader
+
+grader = asyncio.run(main())
+```
+
+### Step 3: Inspect the Generated Rubrics
+
+```python
+print(grader.kwargs.get("rubrics"))
+```
+
+**Output (Generated Rubrics):**
+
+```
+Rubric 1:
+Theme: Correctness and Edge Case Handling
+- Tip1: The solution must produce correct output for all valid inputs, including edge cases such as empty lists or lists of unequal lengths.
+- Tip2: Proper handling of special characters, case insensitivity, and whitespace should be integrated seamlessly without requiring manual preprocessing.
+
+Rubric 2:
+Theme: Algorithmic Efficiency and Optimality
+- Tip1: Preference is given to solutions with optimal time complexity (e.g., O(n + m) for merging sorted lists rather than O((n + m) log(n + m)) via sorting).
+- Tip2: Efficient use of built-in functions or idiomatic Python constructs contributes to better performance and clarity.
+
+Rubric 3:
+Theme: Code Readability and Conciseness
+- Tip1: Solutions should be concise, using minimal lines of code while maintaining clarity and avoiding unnecessary complexity.
+- Tip2: Use of standard library features (e.g., collections.Counter) demonstrates good coding practices and familiarity with Python's ecosystem.
+```
+
+### Step 4: Compare New Code Solutions
+
+```python
+async def compare_solutions():
+    result = await grader.aevaluate(
+        query="Write a function to remove duplicates from a list while preserving order.",
+        responses=[
+            """def remove_duplicates(lst):
+    seen = set()
+    result = []
+    for x in lst:
+        if x not in seen:
+            seen.add(x)
+            result.append(x)
+    return result""",
+            """def remove_duplicates(lst):
+    return list(set(lst))"""
+        ]
+    )
+    print(result)
+
+asyncio.run(compare_solutions())
+```
+
+**Output:**
+
+```python
+GraderRank(
+    name='code_solution_comparator',
+    rank=[1, 2],
+    reason="Response 1 is the best because it correctly removes duplicates while preserving the order of elements. It uses a set for O(1) lookups and a list to maintain insertion order, which ensures correctness and optimal time complexity (O(n)). It also handles edge cases like empty lists gracefully. Response 2 is worse because converting a list to a set and back to a list does not preserve order, violating the problem's requirement. While it is concise and efficient in terms of code length, it fails on correctness for ordered preservation, making it inferior."
+)
+```
+
 
 ## Configuration Reference
 
@@ -245,7 +423,7 @@ GraderScore(
 
 !!! tip "Built-in Templates"
     Use templates from `rm_gallery.core.generator.iterative_rubric.query_rubric_generator`:
-    
+
     - `POINTWISE_EVALUATION_TEMPLATE` — for scoring
     - `LISTWISE_EVALUATION_TEMPLATE` — for ranking
 

@@ -5,13 +5,13 @@ General-purpose graders for evaluating AI responses across common quality dimens
 
 ## Overview
 
-| Grader | Purpose | Score Range | Key Use Case |
-|--------|---------|-------------|--------------|
-| `RelevanceGrader` | Measures query relevance | 1-5 | Chatbots, Q&A systems |
-| `HallucinationGrader` | Detects fabricated information | 1-5 | RAG, fact-checking |
-| `HarmfulnessGrader` | Identifies harmful content | 1-5 | Safety filtering |
-| `InstructionFollowingGrader` | Evaluates instruction compliance | 1-5 | Structured outputs |
-| `CorrectnessGrader` | Checks against ground truth | 1-5 | Knowledge evaluation |
+| Grader | Purpose | Type | Score Range | Key Use Case |
+|--------|---------|------|-------------|--------------|
+| `RelevanceGrader` | Measures query relevance | LLM-Based | 1-5 | Chatbots, Q&A systems |
+| `HallucinationGrader` | Detects fabricated information | LLM-Based | 1-5 | RAG, fact-checking |
+| `HarmfulnessGrader` | Identifies harmful content | LLM-Based | 1-5 | Safety filtering |
+| `InstructionFollowingGrader` | Evaluates instruction compliance | LLM-Based | 1-5 | Structured outputs |
+| `CorrectnessGrader` | Checks against ground truth | LLM-Based | 1-5 | Knowledge evaluation |
 
 ## Performance
 

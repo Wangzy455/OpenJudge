@@ -3,50 +3,13 @@
 Algorithm-based graders for evaluating text similarity, string matching, and numerical accuracy. These graders don't require LLMs—they rely purely on algorithms and rules, offering fast execution, zero cost, and deterministic results.
 
 
-## Algorithm Selection Guide
-
-Choose the right algorithm based on your evaluation goal:
-
-### Scenario Recommendations
-
-| Evaluation Task | Recommended Algorithms | Rationale |
-|-----------------|------------------------|-----------|
-| Machine translation | `bleu`, `meteor`, `chrf` | Considers N-gram overlap and word order |
-| Text summarization | `rougeL`, `rouge2` | Focuses on content coverage and coherence |
-| Q&A systems | `f1_score`, `exact_match` | Balances precision and recall |
-| Short answer verification | `exact_match`, `fuzzy_match` | Exact or fault-tolerant matching |
-| Format validation | `regex_match` | Pattern matching |
-| Keyword detection | `contains_all`, `contains_any` | Flexible keyword checking |
-| Math calculations | `number_accuracy` | Number extraction and comparison |
-| Semantic similarity | `cosine`, `jaccard` | Considers semantics over literals |
-
-### Algorithm Characteristics Comparison
-
-| Characteristic | BLEU | ROUGE | F1 Score | Cosine | Exact Match |
-|----------------|------|-------|----------|--------|-------------|
-| Word order matters | ✓ | ✓ | ✗ | ✗ | ✓ |
-| Semantic understanding | ✗ | ✗ | ✗ | Partial | ✗ |
-| Execution speed | Fast | Fast | Fastest | Moderate | Fastest |
-| Fault tolerance | Moderate | Moderate | Moderate | High | None |
-| Long text support | ✓ | ✓ | ✓ | ✓ | ✗ |
-
-
 ## Overview
 
-| Grader | Purpose | Key Use Cases |
-|--------|---------|---------------|
-| `SimilarityGrader` | Compute text similarity | Translation quality, summarization, answer matching |
-| `StringMatchGrader` | String pattern matching | Format validation, keyword detection, exact matching |
-| `NumberAccuracyGrader` | Numerical accuracy checks | Math calculations, data reports, quantitative metrics |
-
-## Key Features
-
-**When to Use:**
-- Need fast batch evaluation
-- Require fully reproducible results
-- Have clear reference answers or patterns
-- Cost-sensitive applications
-
+| Grader | Purpose | Type | Score Range | Key Use Case |
+|--------|---------|------|-------------|--------------|
+| `SimilarityGrader` | Compute text similarity (15+ algorithms) | Code-Based | [0, 1] | Translation, summarization, answer matching |
+| `StringMatchGrader` | String pattern matching (9+ modes) | Code-Based | {0, 1} | Format validation, keyword detection |
+| `NumberAccuracyGrader` | Numerical accuracy checks | Code-Based | [0, 1] | Math calculations, data reports |
 
 ## SimilarityGrader
 
@@ -104,12 +67,12 @@ from rm_gallery.core.graders.text.similarity import SimilarityGrader
 
 async def main():
     grader = SimilarityGrader(algorithm="bleu")
-    
+
     result = await grader.aevaluate(
         reference_response="The cat is on the mat.",
         response="The cat sits on the mat.",
     )
-    
+
     print(f"Score: {result.score}")  # 0.75-0.85 (good partial match)
     print(f"Reason: {result.reason}")
 
@@ -124,13 +87,13 @@ from rm_gallery.core.graders.text.similarity import SimilarityGrader
 
 async def main():
     grader = SimilarityGrader(algorithm="rougeL")
-    
+
     # Evaluate summarization quality
     result = await grader.aevaluate(
         reference_response="Artificial intelligence is transforming the technology industry.",
         response="AI is changing tech.",
     )
-    
+
     print(f"Score: {result.score}")  # Based on longest common subsequence
     print(f"Reason: {result.reason}")
 
@@ -145,12 +108,12 @@ from rm_gallery.core.graders.text.similarity import SimilarityGrader
 
 async def main():
     grader = SimilarityGrader(algorithm="f1_score", normalize=True)
-    
+
     result = await grader.aevaluate(
         reference_response="Paris is the capital of France",
         response="The capital of France is Paris",
     )
-    
+
     print(f"Score: {result.score}")  # ~1.0 (same tokens)
     print(f"Precision: {result.metadata['precision']}")
     print(f"Recall: {result.metadata['recall']}")
@@ -166,13 +129,13 @@ from rm_gallery.core.graders.text.similarity import SimilarityGrader
 
 async def main():
     grader = SimilarityGrader(algorithm="cosine")
-    
+
     result = await grader.aevaluate(
         reference_response="machine learning and artificial intelligence",
         response="AI and ML technologies",
         use_tfidf=True,
     )
-    
+
     print(f"Score: {result.score}")
     print(f"Reason: {result.reason}")
 
@@ -187,7 +150,7 @@ from rm_gallery.core.graders.text.similarity import SimilarityGrader
 
 async def main():
     grader = SimilarityGrader(algorithm="fuzzy_match")
-    
+
     # Fuzzy matching with spelling tolerance
     result = await grader.aevaluate(
         reference_response="Hello World",
@@ -195,7 +158,7 @@ async def main():
         method="ratio",  # 'ratio', 'partial_ratio', 'token_sort_ratio'
         threshold=0.8,
     )
-    
+
     print(f"Score: {result.score}")
     print(f"Matched: {result.metadata['matched']}")
 
@@ -280,12 +243,12 @@ async def main():
         case_sensitive=False,
         ignore_whitespace=True
     )
-    
+
     result = await grader.aevaluate(
         reference_response="Paris",
         response="paris",
     )
-    
+
     print(f"Score: {result.score}")  # 1.0
     print(f"Matched: {result.metadata['matched']}")  # True
 
@@ -300,22 +263,22 @@ from rm_gallery.core.graders.text.string_match import StringMatchGrader
 
 async def main():
     grader = StringMatchGrader(algorithm="regex_match")
-    
+
     # Validate email format
     result = await grader.aevaluate(
         reference_response=r"[\w.-]+@[\w.-]+\.\w+",
         response="user@example.com",
     )
-    
+
     print(f"Score: {result.score}")  # 1.0
     print(f"Reason: {result.reason}")
-    
+
     # Validate phone number format
     result = await grader.aevaluate(
         reference_response=r"\d{3}-\d{4}",
         response="My phone is 123-4567",
     )
-    
+
     print(f"Score: {result.score}")  # 1.0
 
 asyncio.run(main())
@@ -329,24 +292,24 @@ from rm_gallery.core.graders.text.string_match import StringMatchGrader
 
 async def main():
     grader = StringMatchGrader(algorithm="contains_all", case_sensitive=False)
-    
+
     # Check if response contains all required keywords
     result = await grader.aevaluate(
         reference_response="",  # reference_response not used
         response="The quick brown fox jumps over the lazy dog",
         substrings=["fox", "dog", "jumps"],
     )
-    
+
     print(f"Score: {result.score}")  # 1.0 - all keywords found
     print(f"Matched: {result.metadata['matched']}")  # True
-    
+
     # Partial match
     result = await grader.aevaluate(
         reference_response="",
         response="The quick brown fox jumps over the lazy dog",
         substrings=["fox", "cat", "dog"],
     )
-    
+
     print(f"Score: {result.score}")  # 0.67 - 2/3 keywords found
     print(f"Missing: {result.metadata['missing_substrings']}")  # ['cat']
 
@@ -361,14 +324,14 @@ from rm_gallery.core.graders.text.string_match import StringMatchGrader
 
 async def main():
     grader = StringMatchGrader(algorithm="contains_any")
-    
+
     # Check if response contains any of the keywords
     result = await grader.aevaluate(
         reference_response="",
         response="The weather is sunny today",
         substrings=["sunny", "cloudy", "rainy"],
     )
-    
+
     print(f"Score: {result.score}")  # 1.0
     print(f"Matched: {result.metadata['matched_substrings']}")  # ['sunny']
 
@@ -389,7 +352,7 @@ async def main():
         response="Hello World",
     )
     print(f"Prefix Score: {result.score}")  # 1.0
-    
+
     # Suffix matching
     suffix_grader = StringMatchGrader(algorithm="suffix_match")
     result = await suffix_grader.aevaluate(
@@ -409,12 +372,12 @@ from rm_gallery.core.graders.text.string_match import StringMatchGrader
 
 async def main():
     grader = StringMatchGrader(algorithm="word_overlap", case_sensitive=False)
-    
+
     result = await grader.aevaluate(
         reference_response="the cat sat on the mat",
         response="the dog sat on the rug",
     )
-    
+
     # Overlapping words: "the", "sat", "on" (3)
     # Unique words in reference_response: "the", "cat", "sat", "on", "mat" (5)
     print(f"Score: {result.score}")  # 0.6 (3/5)
@@ -475,13 +438,13 @@ from rm_gallery.core.graders.text.number_accuracy import NumberAccuracyGrader
 
 async def main():
     grader = NumberAccuracyGrader(tolerance=1e-6)
-    
+
     # Perfect match
     result = await grader.aevaluate(
         response="The result is 3.14159",
         reference_response="The result is 3.14159",
     )
-    
+
     print(f"Score: {result.score}")  # 1.0
     print(f"Reason: {result.reason}")  # "Number accuracy: 1/1 numbers correct"
 
@@ -496,12 +459,12 @@ from rm_gallery.core.graders.text.number_accuracy import NumberAccuracyGrader
 
 async def main():
     grader = NumberAccuracyGrader(tolerance=0.01)
-    
+
     result = await grader.aevaluate(
         response="Temperature readings: 25.5°C, 30.2°C, 28.7°C",
         reference_response="Expected values: 25.5°C, 30.0°C, 28.7°C",
     )
-    
+
     # Number matching: 25.5 ✓, 30.2 ✗ (vs 30.0), 28.7 ✓
     print(f"Score: {result.score}")  # 0.67 (2/3)
     print(f"Correct: {result.metadata['correct_numbers']}")  # 2
@@ -518,13 +481,13 @@ from rm_gallery.core.graders.text.number_accuracy import NumberAccuracyGrader
 
 async def main():
     grader = NumberAccuracyGrader(tolerance=1e-6)
-    
+
     # Verify calculation results
     result = await grader.aevaluate(
         response="Area = 78.54 square units, Perimeter = 31.42 units",
         reference_response="Area = 78.54, Perimeter = 31.42",
     )
-    
+
     print(f"Score: {result.score}")  # 1.0
     print(f"Response Numbers: {result.metadata['response_numbers']}")
     print(f"Reference Numbers: {result.metadata['reference_response_numbers']}")
@@ -541,22 +504,22 @@ from rm_gallery.core.graders.text.number_accuracy import NumberAccuracyGrader
 async def main():
     # Loose tolerance - for approximate calculations
     loose_grader = NumberAccuracyGrader(tolerance=0.1)
-    
+
     result = await loose_grader.aevaluate(
         response="The value is approximately 3.14",
         reference_response="The exact value is 3.14159",
     )
-    
+
     print(f"Score (loose): {result.score}")  # 1.0 (3.14 vs 3.14159 within tolerance)
-    
+
     # Strict tolerance - for high precision
     strict_grader = NumberAccuracyGrader(tolerance=1e-9)
-    
+
     result = await strict_grader.aevaluate(
         response="The value is approximately 3.14",
         reference_response="The exact value is 3.14159",
     )
-    
+
     print(f"Score (strict): {result.score}")  # 0.0 (exceeds strict tolerance)
 
 asyncio.run(main())

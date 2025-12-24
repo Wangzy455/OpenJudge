@@ -23,7 +23,7 @@ Example:
 
     Run a specific test:
     ```bash
-    pytest tests/generator/test_iterative_rubric.py::test_iterative_grader_pointwise_without_categorization -v
+    pytest tests/generator/test_iterative_rubric.py::test_iterative_grader_pointwise_single_response -v
     ```
 
     Run directly as a script:
@@ -84,7 +84,7 @@ LISTWISE_TRAINING_SAMPLE = [
             "There was a robot. It painted. The end.",
             "A robot painted a sunset.",
         ],
-        "label_rank": [1, 2, 3],
+        "label_rank": [1, 3, 2],
     },
 ]
 
@@ -120,12 +120,8 @@ def get_test_model() -> OpenAIChatModel:
 
 
 @pytest.mark.asyncio
-async def test_iterative_grader_pointwise_without_categorization() -> None:
-    """Test pointwise grader generation without categorization.
-
-    This test verifies that a pointwise grader can be generated and used
-    for evaluation without enabling rubric categorization.
-    """
+async def test_iterative_grader_pointwise_single_response() -> None:
+    """Test pointwise grader generation for a single response."""
     model = get_test_model()
 
     config = IterativePointwiseRubricsGeneratorConfig(
@@ -161,7 +157,7 @@ async def test_iterative_grader_pointwise_without_categorization() -> None:
     # Evaluate test sample
     test_query = POINTWISE_TEST_SAMPLE[0]["query"]
     test_response = POINTWISE_TEST_SAMPLE[0]["response"]
-    result = await grader.aevaluate(query=test_query, answer=test_response)
+    result = await grader.aevaluate(query=test_query, response=test_response)
 
     # Verify result structure (code correctness check)
     assert result is not None, "Evaluation result should not be None"
@@ -174,12 +170,8 @@ async def test_iterative_grader_pointwise_without_categorization() -> None:
 
 
 @pytest.mark.asyncio
-async def test_iterative_grader_pointwise_with_categorization() -> None:
-    """Test pointwise grader generation with categorization.
-
-    This test verifies that a pointwise grader can be generated with
-    LLM-based categorization enabled.
-    """
+async def test_iterative_grader_pointwise_multiple_responses() -> None:
+    """Test pointwise grader generation for multiple responses."""
     model = get_test_model()
 
     config = IterativePointwiseRubricsGeneratorConfig(
@@ -196,7 +188,7 @@ async def test_iterative_grader_pointwise_with_categorization() -> None:
 
     generator = IterativeRubricsGenerator(config)
     # Use a few samples to test categorization
-    training_data = [deepcopy(POINTWISE_TRAINING_SAMPLE[0]) for _ in range(5)]
+    training_data = [deepcopy(POINTWISE_TRAINING_SAMPLE[0]) for _ in range(150)]
     grader = await generator.generate(dataset=training_data)
 
     # Verify grader was created (code correctness check)
@@ -216,7 +208,7 @@ async def test_iterative_grader_pointwise_with_categorization() -> None:
     # Evaluate test sample
     test_query = POINTWISE_TEST_SAMPLE[0]["query"]
     test_response = POINTWISE_TEST_SAMPLE[0]["response"]
-    result = await grader.aevaluate(query=test_query, answer=test_response)
+    result = await grader.aevaluate(query=test_query, response=test_response)
 
     # Verify result structure (code correctness check)
     assert result is not None, "Evaluation result should not be None"
@@ -265,31 +257,27 @@ async def test_iterative_grader_listwise() -> None:
     assert rubrics is not None, "Rubrics key should exist in kwargs"
     if not rubrics or len(rubrics) == 0:
         logger.warning("Rubrics generation failed validation (LLM output issue, not code bug)")
-        pytest.skip("Rubrics generation failed validation - LLM output issue")
 
     logger.info(f"Generated rubrics:\n{rubrics}")
 
     # Evaluate test sample
     test_query = LISTWISE_TEST_SAMPLE[0]["query"]
     test_responses = LISTWISE_TEST_SAMPLE[0]["responses"]
-    answer = "\n".join([f"Answer {i+1}: {ans}" for i, ans in enumerate(test_responses)])
-    num_responses = len(test_responses)
+    responses = "\n\n".join([f"Response {i+1}:\n{ans}" for i, ans in enumerate(test_responses)])
 
-    result = await grader.aevaluate(
-        query=test_query,
-        answer=answer,
-        num_responses=num_responses,
-    )
+    result = await grader.aevaluate(query=test_query, responses=responses)
+
+    logger.info(f"Listwise mode result: {result}")
 
     # Verify result structure (code correctness check)
     assert result is not None, "Evaluation result should not be None"
     assert isinstance(result, GraderRank), f"Result should be GraderRank, got {type(result)}"
     assert result.rank is not None, "Rank should not be None"
     assert isinstance(result.rank, list), f"Rank should be a list, got {type(result.rank)}"
-    assert len(result.rank) == num_responses, f"Rank length should be {num_responses}, got {len(result.rank)}"
+    assert len(result.rank) == len(
+        test_responses
+    ), f"Rank length should be {len(test_responses)}, got {len(result.rank)}"
     assert result.reason is not None, "Reason should not be None"
-
-    logger.info(f"Listwise mode result: {result}")
 
 
 # =============================================================================
@@ -299,8 +287,8 @@ async def test_iterative_grader_listwise() -> None:
 
 async def main() -> None:
     """Run all test functions."""
-    await test_iterative_grader_pointwise_without_categorization()
-    await test_iterative_grader_pointwise_with_categorization()
+    await test_iterative_grader_pointwise_single_response()
+    await test_iterative_grader_pointwise_multiple_responses()
     await test_iterative_grader_listwise()
 
 

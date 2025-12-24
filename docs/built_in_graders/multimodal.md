@@ -5,11 +5,12 @@ Vision-language graders for evaluating AI responses involving images. These grad
 
 ## Overview
 
-| Grader | Purpose | Key Use Case |
-|--------|---------|--------------|
-| `ImageCoherenceGrader` | Measures image-text alignment | Document generation, content QA |
-| `ImageHelpfulnessGrader` | Evaluates image contribution to understanding | Educational content, tutorials |
-| `TextToImageGrader` | Assesses generated image quality | Text-to-image model evaluation |
+| Grader | Purpose | Type | Score Range | Key Use Case |
+|--------|---------|------|-------------|--------------|
+| `ImageCoherenceGrader` | Measures image-text alignment | LLM-Based | [0, 1] | Document generation, content QA |
+| `ImageHelpfulnessGrader` | Evaluates image contribution to understanding | LLM-Based | [0, 1] | Educational content, tutorials |
+| `TextToImageGrader` | Assesses generated image quality | LLM-Based | [0, 1] | Text-to-image model evaluation |
+| `ImageEditingGrader` | Evaluates image editing quality | LLM-Based | [0, 1] | Image editing model evaluation |
 
 ## Performance
 

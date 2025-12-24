@@ -5,13 +5,13 @@ Specialized graders for evaluating code generation and mathematical problem-solv
 
 ## Overview
 
-| Grader | Purpose | Key Use Case |
-|--------|---------|--------------|
-| `CodeExecutionGrader` | Tests code against test cases | Coding challenges, algorithm tasks |
-| `SyntaxCheckGrader` | Validates Python syntax | Code generation quality control |
-| `CodeStyleGrader` | Checks code style compliance | Code formatting evaluation |
-| `PatchSimilarityGrader` | Measures patch similarity | Code modification, bug fixes |
-| `MathExpressionVerifyGrader` | Verifies math expressions | Math problem solving, symbolic verification |
+| Grader | Purpose | Type | Score Range | Key Use Case |
+|--------|---------|------|-------------|--------------|
+| `CodeExecutionGrader` | Tests code against test cases | Code-Based | [0, 1] | Coding challenges, algorithm tasks |
+| `SyntaxCheckGrader` | Validates Python syntax | Code-Based | {0, 1} | Code generation quality control |
+| `CodeStyleGrader` | Checks code style compliance | Code-Based | [0, 1] | Code formatting evaluation |
+| `PatchSimilarityGrader` | Measures patch similarity | Code-Based | [0, 1] | Code modification, bug fixes |
+| `MathExpressionVerifyGrader` | Verifies math expressions | Code-Based | {0, 1} | Math problem solving, symbolic verification |
 
 
 ## Code Graders
@@ -57,7 +57,7 @@ Executes generated code against test cases to verify functional correctness. Eva
             "syntax": SyntaxCheckGrader(),
             "style": CodeStyleGrader(),
         })
-        
+
         code_response = '''
         ```python
         def fibonacci(n):
@@ -66,9 +66,9 @@ Executes generated code against test cases to verify functional correctness. Eva
             return fibonacci(n-1) + fibonacci(n-2)
         ```
         '''
-        
+
         results = await runner.arun([{"response": code_response}])
-        
+
         print(f"Syntax Score: {results['syntax'][0].score}")
         print(f"Style Score: {results['style'][0].score}")
 
@@ -136,7 +136,7 @@ Validates Python code syntax using Abstract Syntax Tree (AST) parsing. Extracts 
 
     async def main():
         grader = SyntaxCheckGrader()
-        
+
         response = '''
         Here's a function:
         ```python
@@ -144,7 +144,7 @@ Validates Python code syntax using Abstract Syntax Tree (AST) parsing. Extracts 
             return f"Hello, {name}!"
         ```
         '''
-        
+
         result = await grader.aevaluate(response=response)
         print(f"Score: {result.score}")   # 1.0
         print(f"Reason: {result.reason}") # Syntax check: 1/1 blocks valid, 0 errors
@@ -160,7 +160,7 @@ Validates Python code syntax using Abstract Syntax Tree (AST) parsing. Extracts 
 
     async def main():
         grader = SyntaxCheckGrader()
-        
+
         # Missing colon after function definition
         invalid_response = '''
         ```python
@@ -168,7 +168,7 @@ Validates Python code syntax using Abstract Syntax Tree (AST) parsing. Extracts 
             return f"Hello, {name}!"
         ```
         '''
-        
+
         result = await grader.aevaluate(response=invalid_response)
         print(f"Score: {result.score}")   # -0.5
         print(f"Errors: {result.metadata['syntax_errors']}")
@@ -216,7 +216,7 @@ Evaluates code style including indentation consistency and naming conventions. C
 
     async def main():
         grader = CodeStyleGrader()
-        
+
         # Proper snake_case naming and consistent indentation
         good_code = '''
         ```python
@@ -227,7 +227,7 @@ Evaluates code style including indentation consistency and naming conventions. C
             return total
         ```
         '''
-        
+
         result = await grader.aevaluate(response=good_code)
         print(f"Score: {result.score}")   # 1.0
         print(f"Reason: {result.reason}")
@@ -243,7 +243,7 @@ Evaluates code style including indentation consistency and naming conventions. C
 
     async def main():
         grader = CodeStyleGrader()
-        
+
         # Incorrect PascalCase naming (should be snake_case)
         poor_code = '''
         ```python
@@ -254,7 +254,7 @@ Evaluates code style including indentation consistency and naming conventions. C
             return Total
         ```
         '''
-        
+
         result = await grader.aevaluate(response=poor_code)
         print(f"Score: {result.score}")   # Lower score
         print(f"Details: {result.metadata['details']}")
@@ -264,7 +264,7 @@ Evaluates code style including indentation consistency and naming conventions. C
 
 !!! info "Style Checks"
     The grader evaluates:
-    
+
     - **Naming**: Functions and variables should use `snake_case`
     - **Indentation**: Consistent use of spaces (4 spaces per level recommended)
     - **Consistency**: Overall adherence to Python style conventions
@@ -301,24 +301,24 @@ from rm_gallery.core.graders.code import PatchSimilarityGrader
 
 async def main():
     grader = PatchSimilarityGrader()
-    
+
     ground_truth = """
 def calculate_area(radius):
     import math
     return math.pi * radius ** 2
 """
-    
+
     response = """
 def calculate_area(r):
     import math
     return math.pi * r ** 2
 """
-    
+
     result = await grader.aevaluate(
         response=response,
         reference_response=ground_truth
     )
-    
+
     print(f"Score: {result.score}")           # ~0.95
     print(f"Similarity: {result.metadata['similarity']:.3f}")
     print(f"Reason: {result.reason}")
@@ -367,7 +367,7 @@ Verifies mathematical expressions for correctness using symbolic mathematics. Su
 
     async def main():
         grader = MathExpressionVerifyGrader()
-        
+
         # Simple numeric comparison
         result = await grader.aevaluate(
             response="4",
@@ -387,7 +387,7 @@ Verifies mathematical expressions for correctness using symbolic mathematics. Su
 
     async def main():
         grader = MathExpressionVerifyGrader()
-        
+
         # LaTeX notation comparison
         result = await grader.aevaluate(
             response=r"\frac{1}{2}",
@@ -407,7 +407,7 @@ Verifies mathematical expressions for correctness using symbolic mathematics. Su
 
     async def main():
         grader = MathExpressionVerifyGrader()
-        
+
         # Non-equivalent values
         result = await grader.aevaluate(
             response="5",
@@ -432,7 +432,7 @@ Verifies mathematical expressions for correctness using symbolic mathematics. Su
     async def main():
         # Set timeout_score to 0.0 to be stricter on errors
         grader = MathExpressionVerifyGrader(timeout_score=0.0)
-        
+
         result = await grader.aevaluate(
             response="6",
             reference_response="2*3"
@@ -442,8 +442,8 @@ Verifies mathematical expressions for correctness using symbolic mathematics. Su
 
     asyncio.run(main())
     ```
-    
-    **Default behavior** (`timeout_score=1.0`): Gives benefit of doubt on parsing errors  
+
+    **Default behavior** (`timeout_score=1.0`): Gives benefit of doubt on parsing errors
     **Strict mode** (`timeout_score=0.0`): Penalizes any errors or timeouts
 
 

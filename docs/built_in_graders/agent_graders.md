@@ -4,24 +4,24 @@ Evaluate AI agent behavior across actions, tools, memory, planning, reflection, 
 
 ## Overview
 
-| Category | Grader | Purpose | Key Use Case |
-|----------|--------|---------|--------------|
-| **Action** | ActionAlignmentGrader | Evaluates action-plan consistency | ReAct agents, step-by-step reasoning |
-| | ActionLoopDetectionGrader | Detects repetitive actions | Multi-step exploration tasks |
-| **Tool** | ToolSelectionGrader | Assesses tool choice quality | Function calling agents |
-| | ToolCallAccuracyGrader | Evaluates tool call accuracy | API-based assistants |
-| | ToolCallSuccessGrader | Checks technical execution success | Production agent monitoring |
-| | ToolParameterCheckGrader | Validates parameter correctness | Slot-filling dialogues |
-| | ToolCallSequenceMatchGrader | Compares tool call sequences | Benchmark evaluation |
-| **Memory** | MemoryAccuracyGrader | Validates memory factuality | Memory-augmented agents |
-| | MemoryDetailPreservationGrader | Checks detail retention | Long-horizon tasks |
-| | MemoryRetrievalEffectivenessGrader | Assesses memory retrieval | RAG-based agents |
-| **Plan** | PlanFeasibilityGrader | Evaluates plan feasibility | Task planning agents |
-| **Reflection** | ReflectionAccuracyGrader | Validates reflection accuracy | Self-correcting agents |
-| | ReflectionOutcomeUnderstandingGrader | Checks outcome understanding | Error recovery scenarios |
-| | ReflectionProgressAwarenessGrader | Assesses progress awareness | Goal-tracking agents |
-| **Observation** | ObservationInformationGainGrader | Measures information gain | Exploration efficiency |
-| **Trajectory** | TrajectoryComprehensiveGrader | Comprehensive trajectory evaluation | End-to-end agent testing |
+| Category | Grader | Purpose | Type | Score Range | Key Use Case |
+|----------|--------|---------|------|-------------|--------------|
+| **Action** | `ActionAlignmentGrader` | Evaluates action-plan consistency | LLM-Based | {0, 1} | ReAct agents, step-by-step reasoning |
+| | `ActionLoopDetectionGrader` | Detects repetitive actions | Code-Based | [0, 1] | Multi-step exploration tasks |
+| **Tool** | `ToolSelectionGrader` | Assesses tool choice quality | LLM-Based | 1-5 | Function calling agents |
+| | `ToolCallAccuracyGrader` | Evaluates tool call accuracy | LLM-Based | 1-5 | API-based assistants |
+| | `ToolCallSuccessGrader` | Checks technical execution success | LLM-Based | {0, 1} | Production agent monitoring |
+| | `ToolParameterCheckGrader` | Validates parameter correctness | LLM-Based | {0, 1} | Slot-filling dialogues |
+| | `ToolCallSequenceMatchGrader` | Compares tool call sequences | Code-Based | [0, 1] | Benchmark evaluation |
+| **Memory** | `MemoryAccuracyGrader` | Validates memory factuality | LLM-Based | {0, 1} | Memory-augmented agents |
+| | `MemoryDetailPreservationGrader` | Checks detail retention | LLM-Based | {0, 1} | Long-horizon tasks |
+| | `MemoryRetrievalEffectivenessGrader` | Assesses memory retrieval | LLM-Based | {0, 1} | RAG-based agents |
+| **Plan** | `PlanFeasibilityGrader` | Evaluates plan feasibility | LLM-Based | {0, 1} | Task planning agents |
+| **Reflection** | `ReflectionAccuracyGrader` | Validates reflection accuracy | LLM-Based | {0, 1} | Self-correcting agents |
+| | `ReflectionOutcomeUnderstandingGrader` | Checks outcome understanding | LLM-Based | {0, 1} | Error recovery scenarios |
+| | `ReflectionProgressAwarenessGrader` | Assesses progress awareness | LLM-Based | {0, 1} | Goal-tracking agents |
+| **Observation** | `ObservationInformationGainGrader` | Measures information gain | Code-Based | [0, 1] | Exploration efficiency |
+| **Trajectory** | `TrajectoryComprehensiveGrader` | Comprehensive trajectory evaluation | LLM-Based | [0, 1] | End-to-end agent testing |
 
 ## Performance
 
@@ -45,6 +45,10 @@ Benchmark results using qwen3-max on agent evaluation tasks:
 !!! note "Performance Metrics"
     Preference Accuracy measures alignment with human-annotated preference labels (positive and negative samples) on agent evaluation tasks. Higher is better.
 
+**Benchmark Sources:**
+
+- **API-Bank**: [A Comprehensive Benchmark for Tool-Augmented LLMs](https://arxiv.org/abs/2304.08244) (EMNLP 2023) — A benchmark with 73 API tools and 314 tool-use dialogues for evaluating LLM tool utilization capabilities.
+- **ALFWorld, WebShop, GAIA**: Evaluation datasets from [Where LLM Agents Fail and How They can Learn From Failures](https://arxiv.org/abs/2509.25370) — A systematic study of agent failure modes with the AgentErrorTaxonomy covering memory, reflection, planning, and action modules.
 
 
 ## Action Graders

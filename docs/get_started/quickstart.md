@@ -85,7 +85,7 @@ In this quickstart, we'll use `RelevanceGrader` to evaluate a QA response.
 
 ## Prepare Your Data
 
-Prepare a dictionary with `query` and `response` fields:
+Prepare a dictionary with `query` and `response` fields. These field names correspond to the input parameters of the grader's `aevaluate()` method:
 
 ```python
 data = {

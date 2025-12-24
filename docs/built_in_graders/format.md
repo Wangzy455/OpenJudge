@@ -3,20 +3,16 @@
 Format graders for evaluating structural and formatting aspects of AI responses. These graders validate JSON structures, check length constraints, detect repetition, and verify specific output formats like reasoning tags.
 
 
-## Format Selection Guide
+## Overview
 
-Choose the appropriate format grader based on your validation requirements:
-
-| Use Case | Recommended Grader | Key Benefit |
-|----------|-------------------|-------------|
-| JSON output validation | `JsonValidatorGrader` | Fast syntax validation |
-| API response matching | `JsonMatchGrader` | Deep structure comparison |
-| Control response length | `LengthPenaltyGrader` | Penalize verbose/short outputs |
-| Detect text repetition | `NgramRepetitionPenaltyGrader` | Quality control |
-| Chain-of-thought format | `ReasoningFormatGrader` | Enforce thinking structure |
-| Agent tool calls | `ReasoningToolCallFormatGrader` | Validate tool usage format |
-
-**Graders are organized into three categories:** JSON Validation for structured data outputs, Length & Quality Control for enforcing output constraints, and Reasoning Format Validation for chain-of-thought and agent-based evaluations.
+| Grader | Purpose | Type | Score Range | Key Use Case |
+|--------|---------|------|-------------|--------------|
+| `JsonValidatorGrader` | Validates JSON syntax | Code-Based | {0, 1} | JSON output validation |
+| `JsonMatchGrader` | Deep comparison of JSON structures | Code-Based | {0, 1} | API response matching |
+| `LengthPenaltyGrader` | Penalizes too short/long responses | Code-Based | ≤0 (penalty) | Control response length |
+| `NgramRepetitionPenaltyGrader` | Penalizes repetitive n-grams | Code-Based | ≤0 (penalty) | Detect text repetition |
+| `ReasoningFormatGrader` | Checks `<think>` and `<answer>` tags | Code-Based | {0, 1} | Chain-of-thought format |
+| `ReasoningToolCallFormatGrader` | Validates tool call format with JSON | Code-Based | {0, 1} | Agent tool calls |
 
 
 ## JSON Validation
