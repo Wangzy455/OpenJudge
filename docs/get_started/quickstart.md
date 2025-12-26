@@ -6,24 +6,25 @@ Get started with OpenJudge in 5 minutes. This guide walks you through installati
 
 === "From PyPI"
 
-```bash
-# Install with Standard dependencies from PyPI
-pip install py-openjudge
+    ```bash
+    # Install with Standard dependencies from PyPI
+    pip install py-openjudge
 
-# For development purposes, install with dev dependencies
-pip install -e .[dev]
-```
+    # For development purposes, install with dev dependencies
+    pip install -e .[dev]
+    ```
+
 === "From Source"
 
-```bash
-git clone https://github.com/modelscope/OpenJudge.git
-cd OpenJudge
+    ```bash
+    git clone https://github.com/modelscope/OpenJudge.git
+    cd OpenJudge
 
-# Install based on your needs:
-pip install -e .        # Standard installation
-pip install -e .[dev]   # With development dependencies
-pip install -e .[verl]  # With VerL option for training scenarios
-```
+    # Install based on your needs:
+    pip install -e .        # Standard installation
+    pip install -e .[dev]   # With development dependencies
+    pip install -e .[verl]  # With VerL option for training scenarios
+    ```
 
 > **Tips:**
 > OpenJudge requires Python version >=3.10 and <3.13. For best compatibility, we recommend using Python 3.10 or 3.11.
@@ -35,27 +36,22 @@ For LLM-Based graders, you need to configure API credentials. OpenJudge uses the
 
 === "Environment Variables (Recommended)"
 
-    Set environment variables in your terminal:
-
-    **OpenAI:**
-
     ```bash
+    # Set environment variables in your terminal
+
+    # OpenAI
     export OPENAI_API_KEY="sk-your-api-key"
     export OPENAI_BASE_URL="https://api.openai.com/v1"
-    ```
 
-    **DashScope (Qwen):**
-
-    ```bash
+    # DashScope (Qwen)
     export OPENAI_API_KEY="sk-your-dashscope-key"
     export OPENAI_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
     ```
 
 === "Pass Directly in Code"
 
-    You can also pass credentials when creating the model:
-
     ```python
+    # Pass credentials directly when creating the model
     from openjudge.models import OpenAIChatModel
 
     model = OpenAIChatModel(
