@@ -9,7 +9,7 @@
 </h3>
 
 <p>
-  🌟 <em>如果您觉得 OpenJudge 有帮助，请给我们一个 <b>Star</b>！</em> 🌟 
+  🌟 <em>如果您觉得 OpenJudge 有帮助，请给我们一个 <b>Star</b>！</em> 🌟
 </p>
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue?logo=python)](https://pypi.org/project/py-openjudge/)
@@ -179,9 +179,9 @@ if __name__ == "__main__":
 
 我们欢迎您的贡献！我们希望让参与 OpenJudge 的贡献尽可能简单和透明。
 
-> **🎨 添加新评分器** — 有领域特定的评估逻辑？与社区分享吧！  
-> **🐛 报告 Bug** — 发现问题？通过 [提交 issue](https://github.com/modelscope/OpenJudge/issues) 帮助我们修复  
-> **📝 改进文档** — 更清晰的解释或更好的示例总是受欢迎的  
+> **🎨 添加新评分器** — 有领域特定的评估逻辑？与社区分享吧！
+> **🐛 报告 Bug** — 发现问题？通过 [提交 issue](https://github.com/modelscope/OpenJudge/issues) 帮助我们修复
+> **📝 改进文档** — 更清晰的解释或更好的示例总是受欢迎的
 > **💡 提议新功能** — 有新集成的想法？让我们讨论！
 
 📖 查看完整的 [贡献指南](https://modelscope.github.io/OpenJudge/community/contributing/) 了解编码标准和 PR 流程。
@@ -191,7 +191,7 @@ if __name__ == "__main__":
 ### 迁移指南（v0.1.x → v0.2.0）
 > OpenJudge 之前以旧包名 `rm-gallery`（v0.1.x）发布。从 v0.2.0 开始，它以 `py-openjudge` 发布，Python 导入命名空间为 `openjudge`。
 
-**OpenJudge v0.2.0 与 v0.1.x 不向后兼容。**  
+**OpenJudge v0.2.0 与 v0.1.x 不向后兼容。**
 如果您目前正在使用 v0.1.x，请选择以下路径之一：
 
 - **继续使用 v0.1.x（旧版）**：继续使用旧包

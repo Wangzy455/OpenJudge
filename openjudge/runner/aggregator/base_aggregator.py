@@ -25,7 +25,7 @@ class BaseAggregator(ABC):
             name: Name of the aggregator
         """
         self.name = name
-        
+
     @property
     def __name__(self):
         """

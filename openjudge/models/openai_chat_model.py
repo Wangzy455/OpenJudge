@@ -162,7 +162,7 @@ class OpenAIChatModel(BaseChatModel):
         }
         if self.reasoning_effort and "reasoning_effort" not in kwargs:
             kwargs["reasoning_effort"] = self.reasoning_effort
-        
+
         # Handle enable_thinking parameter for DashScope/Qwen models
         # For non-streaming calls with qwen models, enable_thinking must be False
         # Use extra_body to pass parameters not in OpenAI SDK

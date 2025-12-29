@@ -9,7 +9,7 @@
 </h3>
 
 <p>
-  🌟 <em>If you find OpenJudge helpful, please give us a <b>Star</b>!</em> 🌟 
+  🌟 <em>If you find OpenJudge helpful, please give us a <b>Star</b>!</em> 🌟
 </p>
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue?logo=python)](https://pypi.org/project/py-openjudge/)
@@ -56,7 +56,7 @@ Access **50+ production-ready graders** featuring a comprehensive taxonomy, rigo
 
 **Key Graders:**
 - `Relevance` - Semantic relevance scoring
-- `Similarity` - Text similarity measurement  
+- `Similarity` - Text similarity measurement
 - `Syntax Check` - Code syntax validation
 - `JSON Match` - Structure compliance
 
@@ -179,9 +179,9 @@ Seamlessly connect OpenJudge with mainstream observability and training platform
 
 We love your input! We want to make contributing to OpenJudge as easy and transparent as possible.
 
-> **🎨 Adding New Graders** — Have domain-specific evaluation logic? Share it with the community!  
-> **🐛 Reporting Bugs** — Found a glitch? Help us fix it by [opening an issue](https://github.com/modelscope/OpenJudge/issues)  
-> **📝 Improving Docs** — Clearer explanations or better examples are always welcome  
+> **🎨 Adding New Graders** — Have domain-specific evaluation logic? Share it with the community!
+> **🐛 Reporting Bugs** — Found a glitch? Help us fix it by [opening an issue](https://github.com/modelscope/OpenJudge/issues)
+> **📝 Improving Docs** — Clearer explanations or better examples are always welcome
 > **💡 Proposing Features** — Have ideas for new integrations? Let's discuss!
 
 📖 See full [Contributing Guidelines](https://modelscope.github.io/OpenJudge/community/contributing/) for coding standards and PR process.
@@ -193,7 +193,7 @@ We love your input! We want to make contributing to OpenJudge as easy and transp
 ### Migration Guide (v0.1.x → v0.2.0)
 > OpenJudge was previously distributed as the legacy package `rm-gallery` (v0.1.x). Starting from v0.2.0, it is published as `py-openjudge` and the Python import namespace is `openjudge`.
 
-**OpenJudge v0.2.0 is NOT backward compatible with v0.1.x.**  
+**OpenJudge v0.2.0 is NOT backward compatible with v0.1.x.**
 If you are currently using v0.1.x, choose one of the following paths:
 
 - **Stay on v0.1.x (legacy)**: keep using the old package

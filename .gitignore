@@ -21,6 +21,7 @@ uv*/
 /dist
 *.egg-info
 /test_env
+/build
 
 # Log Files
 /log

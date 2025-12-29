@@ -100,7 +100,7 @@ Notice that our data uses `ground_truth` as the field name, but `CorrectnessGrad
 # Map fields: extract query, response, and rename ground_truth to reference_response
 mapper = {
     "query": "query",
-    "response": "response", 
+    "response": "response",
     "reference_response": "ground_truth"
 }
 ```
