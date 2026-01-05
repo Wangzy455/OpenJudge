@@ -1,13 +1,34 @@
 # -*- coding: utf-8 -*-
-"""Data schemas for zero-shot evaluation."""
+"""Data schemas and configuration loading for zero-shot evaluation.
 
-from typing import Any, Dict, List, Optional
+This module provides:
+- Data models for configuration (OpenAIEndpoint, ZeroShotConfig, etc.)
+- Configuration loading utilities (load_config, resolve_env_vars)
+"""
 
+import os
+import re
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+import yaml
+from loguru import logger
 from pydantic import BaseModel, Field
 
 
+# =============================================================================
+# Data Models
+# =============================================================================
+
+
 class OpenAIEndpoint(BaseModel):
-    """OpenAI-compatible endpoint configuration."""
+    """OpenAI-compatible endpoint configuration.
+
+    This schema is used for all endpoint configurations including:
+    - Target model endpoints
+    - Judge model endpoint
+    - Query generation endpoint (optional)
+    """
 
     base_url: str = Field(..., description="API base URL")
     api_key: str = Field(..., description="API key, supports ${ENV_VAR} format")
@@ -23,15 +44,6 @@ class TaskConfig(BaseModel):
     scenario: Optional[str] = Field(default=None, description="Usage scenario")
 
 
-class QueryGenerationEndpoint(BaseModel):
-    """Endpoint configuration for query generation (optional, defaults to judge_endpoint)."""
-
-    base_url: str = Field(..., description="API base URL")
-    api_key: str = Field(..., description="API key, supports ${ENV_VAR} format")
-    model: str = Field(..., description="Model name")
-    extra_params: Optional[Dict[str, Any]] = Field(default=None, description="Extra request parameters")
-
-
 class QueryGenerationConfig(BaseModel):
     """Query generation configuration."""
 
@@ -40,7 +52,8 @@ class QueryGenerationConfig(BaseModel):
     categories: Optional[List[Dict[str, Any]]] = Field(default=None, description="Query categories")
 
     # Endpoint configuration (optional, defaults to judge_endpoint if not specified)
-    endpoint: Optional[QueryGenerationEndpoint] = Field(
+    # Uses OpenAIEndpoint for consistency
+    endpoint: Optional[OpenAIEndpoint] = Field(
         default=None,
         description="Custom endpoint for query generation. If not set, uses judge_endpoint.",
     )
@@ -105,3 +118,78 @@ class QueryGenerationOutput(BaseModel):
     queries: List[GeneratedQuery] = Field(..., description="List of generated queries")
     reason: str = Field(default="", description="Generation reasoning")
 
+
+# =============================================================================
+# Configuration Loading
+# =============================================================================
+
+
+def resolve_env_vars(value: Any) -> Any:
+    """Resolve environment variables in configuration values.
+
+    Supports ${VAR_NAME} format.
+
+    Args:
+        value: Configuration value (can be str, dict, or list)
+
+    Returns:
+        Value with environment variables resolved
+    """
+    if isinstance(value, str):
+        pattern = r"\$\{(\w+)\}"
+        matches = re.findall(pattern, value)
+        for var_name in matches:
+            env_value = os.getenv(var_name, "")
+            if not env_value:
+                logger.warning(f"Environment variable {var_name} not set")
+            value = value.replace(f"${{{var_name}}}", env_value)
+        return value
+    elif isinstance(value, dict):
+        return {k: resolve_env_vars(v) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [resolve_env_vars(item) for item in value]
+    return value
+
+
+def load_config(config_path: Union[str, Path]) -> ZeroShotConfig:
+    """Load and validate configuration from YAML file.
+
+    Args:
+        config_path: Path to the configuration file
+
+    Returns:
+        Validated ZeroShotConfig object
+
+    Raises:
+        FileNotFoundError: If config file doesn't exist
+        ValueError: If config validation fails
+    """
+    config_path = Path(config_path)
+    if not config_path.exists():
+        raise FileNotFoundError(f"Configuration file not found: {config_path}")
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        raw_config = yaml.safe_load(f)
+
+    # Resolve environment variables
+    resolved_config = resolve_env_vars(raw_config)
+
+    # Validate and create config object
+    config = ZeroShotConfig(**resolved_config)
+    logger.info(f"Loaded configuration from {config_path}")
+    logger.info(f"Task: {config.task.description}")
+    logger.info(f"Target endpoints: {list(config.target_endpoints.keys())}")
+
+    return config
+
+
+def config_to_dict(config: ZeroShotConfig) -> Dict[str, Any]:
+    """Convert ZeroShotConfig to dictionary (for serialization).
+
+    Args:
+        config: ZeroShotConfig object
+
+    Returns:
+        Dictionary representation
+    """
+    return config.model_dump()

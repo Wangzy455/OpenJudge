@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from cookbooks.zero_shot_evaluation.core.schema import (
+from cookbooks.zero_shot_evaluation.schema import (
     GeneratedQuery,
     OpenAIEndpoint,
     QueryGenerationConfig,
@@ -295,16 +295,12 @@ class QueryGenerator:
             # Use custom endpoint specified in query_generation config
             endpoint = self.query_config.endpoint
             extra_params = endpoint.extra_params or {}
-            logger.info(
-                f"Using custom query generation endpoint: {endpoint.model} @ {endpoint.base_url}"
-            )
+            logger.info(f"Using custom query generation endpoint: {endpoint.model} @ {endpoint.base_url}")
         else:
             # Fallback to judge_endpoint
             endpoint = judge_endpoint
             extra_params = endpoint.extra_params or {}
-            logger.info(
-                f"Using judge endpoint for query generation: {endpoint.model} @ {endpoint.base_url}"
-            )
+            logger.info(f"Using judge endpoint for query generation: {endpoint.model} @ {endpoint.base_url}")
 
         extra_params = dict(extra_params)  # Make a copy to avoid modifying original
         # Remove params that we'll set explicitly to avoid conflicts
@@ -354,32 +350,34 @@ class QueryGenerator:
         retry_round = 0
         consecutive_failures = 0
         max_consecutive_failures = 3  # Stop after 3 consecutive complete failures
-        
+
         while len(base_queries) < target_count and retry_round <= max_retries:
             if retry_round > 0:
                 remaining = target_count - len(base_queries)
                 logger.info(f"Retry round {retry_round}: need {remaining} more queries")
-            
+
             new_queries = await self._parallel_generate()
-            
+
             # Deduplicate against existing queries
             added_count = 0
             for q in new_queries:
                 if not self._is_duplicate(q, base_queries):
                     base_queries.append(q)
                     added_count += 1
-            
+
             logger.info(f"After round {retry_round}: {len(base_queries)} queries collected (+{added_count} new)")
-            
+
             if len(new_queries) == 0:
                 consecutive_failures += 1
-                logger.warning(f"Round {retry_round} produced 0 queries (consecutive failures: {consecutive_failures}/{max_consecutive_failures})")
+                logger.warning(
+                    f"Round {retry_round} produced 0 queries (consecutive failures: {consecutive_failures}/{max_consecutive_failures})"
+                )
                 if consecutive_failures >= max_consecutive_failures:
                     logger.error(f"Stopping after {max_consecutive_failures} consecutive complete failures")
                     break
             else:
                 consecutive_failures = 0  # Reset on any success
-                
+
             retry_round += 1
 
         logger.info(f"Base generation complete: {len(base_queries)} queries")
@@ -399,7 +397,7 @@ class QueryGenerator:
         logger.info(f"Final result: {len(result)} queries (target: {target_count})")
 
         return result
-    
+
     def _is_duplicate(self, query: GeneratedQuery, existing: List[GeneratedQuery]) -> bool:
         """Check if a query is duplicate of existing queries (simple text comparison)."""
         query_text = query.query.strip().lower()

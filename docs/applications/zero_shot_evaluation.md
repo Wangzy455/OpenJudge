@@ -49,7 +49,7 @@ from cookbooks.zero_shot_evaluation import ZeroShotEvaluator
 async def main():
     evaluator = ZeroShotEvaluator.from_config("config.yaml")
     result = await evaluator.evaluate()
-    
+
     print(f"Best Model: {result.best_pipeline}")
     for rank, (model, win_rate) in enumerate(result.rankings, 1):
         print(f"{rank}. {model}: {win_rate:.1%}")

@@ -1,43 +1,47 @@
 # -*- coding: utf-8 -*-
-"""Zero-Shot Evaluation module for comparing models and agent pipelines.
+"""Core modules for zero-shot evaluation.
 
-Usage:
-    # CLI
-    python -m cookbooks.zero_shot_evaluation --config config.yaml
+This package contains the core components for the zero-shot evaluation pipeline:
+- ZeroShotPipeline: End-to-end evaluation pipeline
+- QueryGenerator: Test query generation
+- ResponseCollector: Response collection from endpoints
 
-    # Python
-    from cookbooks.zero_shot_evaluation import ZeroShotEvaluator
-    evaluator = ZeroShotEvaluator.from_config("config.yaml")
-    result = await evaluator.evaluate()
+Note: RubricGenerator has been moved to openjudge.generator module for better reusability.
+Note: Checkpoint management is integrated into ZeroShotPipeline.
 """
 
-from cookbooks.zero_shot_evaluation.core.config import load_config
-from cookbooks.zero_shot_evaluation.core.evaluator import EvaluationResult, ZeroShotEvaluator
-from cookbooks.zero_shot_evaluation.core.query_generator import QueryGenerator
-from cookbooks.zero_shot_evaluation.core.response_collector import ResponseCollector
-from cookbooks.zero_shot_evaluation.core.rubric_generator import RubricGenerator
-from cookbooks.zero_shot_evaluation.core.schema import (
+from cookbooks.zero_shot_evaluation.query_generator import QueryGenerator
+from cookbooks.zero_shot_evaluation.response_collector import ResponseCollector
+from cookbooks.zero_shot_evaluation.schema import (
     EvaluationConfig,
+    GeneratedQuery,
     OpenAIEndpoint,
     QueryGenerationConfig,
     TaskConfig,
     ZeroShotConfig,
+    load_config,
+)
+from cookbooks.zero_shot_evaluation.zero_shot_pipeline import (
+    EvaluationResult,
+    EvaluationStage,
+    ZeroShotPipeline,
 )
 
 __all__ = [
     # Config
-    "ZeroShotConfig",
-    "TaskConfig",
-    "OpenAIEndpoint",
-    "QueryGenerationConfig",
-    "EvaluationConfig",
     "load_config",
+    # Pipeline
+    "ZeroShotPipeline",
+    "EvaluationResult",
+    "EvaluationStage",
     # Components
     "QueryGenerator",
     "ResponseCollector",
-    "RubricGenerator",
-    # Evaluator
-    "ZeroShotEvaluator",
-    "EvaluationResult",
+    # Schema
+    "EvaluationConfig",
+    "GeneratedQuery",
+    "OpenAIEndpoint",
+    "QueryGenerationConfig",
+    "TaskConfig",
+    "ZeroShotConfig",
 ]
-

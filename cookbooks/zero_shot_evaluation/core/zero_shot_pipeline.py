@@ -1,7 +1,21 @@
 # -*- coding: utf-8 -*-
-"""End-to-end evaluator for zero-shot evaluation."""
+"""End-to-end pipeline for zero-shot evaluation.
+
+This module provides the ZeroShotPipeline class for end-to-end evaluation
+of AI models without labeled data. It integrates with OpenJudge's core
+components for grading, analysis, and rubric generation.
+
+Pipeline Steps:
+    1. Generate test queries
+    2. Collect responses from target endpoints
+    3. Generate evaluation rubrics
+    4. Run pairwise evaluation
+    5. Analyze and rank results
+"""
 
 import json
+from datetime import datetime
+from enum import Enum
 from itertools import combinations
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -9,29 +23,226 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from cookbooks.zero_shot_evaluation.core.checkpoint import (
-    CheckpointManager,
-    EvaluationStage,
-)
-from cookbooks.zero_shot_evaluation.core.config import load_config
 from cookbooks.zero_shot_evaluation.core.query_generator import QueryGenerator
 from cookbooks.zero_shot_evaluation.core.response_collector import ResponseCollector
-from cookbooks.zero_shot_evaluation.core.rubric_generator import RubricGenerator
 from cookbooks.zero_shot_evaluation.core.schema import (
     GeneratedQuery,
     OpenAIEndpoint,
     ZeroShotConfig,
+    load_config,
 )
+
+# OpenJudge core components
+from openjudge.analyzer import PairwiseAnalyzer, PairwiseAnalysisResult
+from openjudge.generator import RubricGenerationConfig, RubricGenerator
 from openjudge.graders.llm_grader import GraderMode, LLMGrader
-from openjudge.graders.schema import GraderResult, GraderScore
+from openjudge.graders.schema import GraderResult
 from openjudge.models.openai_chat_model import OpenAIChatModel
 from openjudge.models.schema.oai.message import ChatMessage
 from openjudge.models.schema.prompt_template import PromptTemplate
 from openjudge.runner.grading_runner import GraderConfig, GradingRunner
 
 
+# =============================================================================
+# Checkpoint Management (integrated from checkpoint.py)
+# =============================================================================
+
+
+class EvaluationStage(str, Enum):
+    """Evaluation pipeline stages."""
+
+    NOT_STARTED = "not_started"
+    QUERIES_GENERATED = "queries_generated"
+    RESPONSES_COLLECTED = "responses_collected"
+    RUBRICS_GENERATED = "rubrics_generated"
+    EVALUATION_COMPLETE = "evaluation_complete"
+
+
+class _CheckpointData(BaseModel):
+    """Internal checkpoint data model."""
+
+    stage: EvaluationStage = Field(default=EvaluationStage.NOT_STARTED)
+    created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+
+    # Data files
+    queries_file: Optional[str] = None
+    responses_file: Optional[str] = None
+    rubrics_file: Optional[str] = None
+
+    # Progress tracking
+    total_queries: int = 0
+    collected_responses: int = 0
+    evaluated_pairs: int = 0
+    total_pairs: int = 0
+
+
+class _CheckpointManager:
+    """Internal checkpoint manager for evaluation pipeline resume capability."""
+
+    CHECKPOINT_FILE = "checkpoint.json"
+    QUERIES_FILE = "queries.json"
+    RESPONSES_FILE = "responses.json"
+    RUBRICS_FILE = "rubrics.json"
+
+    def __init__(self, output_dir: str):
+        """Initialize checkpoint manager.
+
+        Args:
+            output_dir: Directory to store checkpoint files
+        """
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self._checkpoint: Optional[_CheckpointData] = None
+
+    @property
+    def checkpoint_path(self) -> Path:
+        return self.output_dir / self.CHECKPOINT_FILE
+
+    def load(self) -> Optional[_CheckpointData]:
+        """Load existing checkpoint if available."""
+        if not self.checkpoint_path.exists():
+            logger.info("No checkpoint found, starting fresh")
+            return None
+
+        try:
+            with open(self.checkpoint_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self._checkpoint = _CheckpointData(**data)
+            logger.info(f"Loaded checkpoint: stage={self._checkpoint.stage.value}")
+            return self._checkpoint
+        except Exception as e:
+            logger.warning(f"Failed to load checkpoint: {e}")
+            return None
+
+    def save(self, checkpoint: _CheckpointData) -> None:
+        """Save checkpoint to file."""
+        checkpoint.updated_at = datetime.now().isoformat()
+        self._checkpoint = checkpoint
+
+        with open(self.checkpoint_path, "w", encoding="utf-8") as f:
+            json.dump(checkpoint.model_dump(), f, indent=2, ensure_ascii=False)
+
+        logger.debug(f"Checkpoint saved: stage={checkpoint.stage.value}")
+
+    def save_queries(self, queries: List[GeneratedQuery]) -> str:
+        """Save generated queries."""
+        file_path = self.output_dir / self.QUERIES_FILE
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump([q.model_dump() for q in queries], f, indent=2, ensure_ascii=False)
+
+        logger.info(f"Saved {len(queries)} queries to {file_path}")
+        return str(file_path)
+
+    def load_queries(self) -> List[GeneratedQuery]:
+        """Load saved queries."""
+        file_path = self.output_dir / self.QUERIES_FILE
+
+        if not file_path.exists():
+            return []
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        queries = [GeneratedQuery(**item) for item in data]
+        logger.info(f"Loaded {len(queries)} queries from {file_path}")
+        return queries
+
+    def save_responses(self, responses: List[Dict[str, Any]]) -> str:
+        """Save collected responses."""
+        file_path = self.output_dir / self.RESPONSES_FILE
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(responses, f, indent=2, ensure_ascii=False)
+
+        logger.info(f"Saved {len(responses)} responses to {file_path}")
+        return str(file_path)
+
+    def load_responses(self) -> List[Dict[str, Any]]:
+        """Load saved responses."""
+        file_path = self.output_dir / self.RESPONSES_FILE
+
+        if not file_path.exists():
+            return []
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            responses = json.load(f)
+
+        logger.info(f"Loaded {len(responses)} responses from {file_path}")
+        return responses
+
+    def save_rubrics(self, rubrics: List[str]) -> str:
+        """Save generated rubrics."""
+        file_path = self.output_dir / self.RUBRICS_FILE
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(rubrics, f, indent=2, ensure_ascii=False)
+
+        logger.info(f"Saved {len(rubrics)} rubrics to {file_path}")
+        return str(file_path)
+
+    def load_rubrics(self) -> List[str]:
+        """Load saved rubrics."""
+        file_path = self.output_dir / self.RUBRICS_FILE
+
+        if not file_path.exists():
+            return []
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            rubrics = json.load(f)
+
+        logger.info(f"Loaded {len(rubrics)} rubrics from {file_path}")
+        return rubrics
+
+    def update_stage(
+        self,
+        stage: EvaluationStage,
+        **kwargs,
+    ) -> None:
+        """Update checkpoint stage and save."""
+        if self._checkpoint is None:
+            self._checkpoint = _CheckpointData()
+
+        self._checkpoint.stage = stage
+        for key, value in kwargs.items():
+            if hasattr(self._checkpoint, key):
+                setattr(self._checkpoint, key, value)
+
+        self.save(self._checkpoint)
+
+    def clear(self) -> None:
+        """Clear all checkpoint data."""
+        for file_name in [
+            self.CHECKPOINT_FILE,
+            self.QUERIES_FILE,
+            self.RESPONSES_FILE,
+            self.RUBRICS_FILE,
+        ]:
+            file_path = self.output_dir / file_name
+            if file_path.exists():
+                file_path.unlink()
+
+        self._checkpoint = None
+        logger.info("Checkpoint cleared")
+
+
+# =============================================================================
+# Evaluation Result
+# =============================================================================
+
+
 class EvaluationResult(BaseModel):
-    """Result of zero-shot evaluation."""
+    """Result of zero-shot evaluation.
+
+    Attributes:
+        rankings: List of (model_name, win_rate) tuples sorted by win rate
+        win_rates: Win rate for each model
+        win_matrix: Win rate matrix where win_matrix[A][B] = how often A beats B
+        best_pipeline: Name of the best performing pipeline
+        total_queries: Total number of queries evaluated
+        total_comparisons: Total number of pairwise comparisons
+    """
 
     rankings: List[Tuple[str, float]] = Field(default_factory=list)
     win_rates: Dict[str, float] = Field(default_factory=dict)
@@ -40,9 +251,59 @@ class EvaluationResult(BaseModel):
     total_queries: int = Field(default=0)
     total_comparisons: int = Field(default=0)
 
+    @classmethod
+    def from_analysis(cls, analysis: PairwiseAnalysisResult, total_queries: int) -> "EvaluationResult":
+        """Create EvaluationResult from PairwiseAnalysisResult.
 
-class ZeroShotEvaluator:
-    """End-to-end zero-shot evaluator with checkpoint support."""
+        Args:
+            analysis: Analysis result from PairwiseAnalyzer
+            total_queries: Total number of queries evaluated
+
+        Returns:
+            EvaluationResult instance
+        """
+        return cls(
+            rankings=analysis.rankings,
+            win_rates=analysis.win_rates,
+            win_matrix=analysis.win_matrix,
+            best_pipeline=analysis.best_model,
+            total_queries=total_queries,
+            total_comparisons=analysis.total_comparisons,
+        )
+
+
+# =============================================================================
+# Zero-Shot Pipeline
+# =============================================================================
+
+
+class ZeroShotPipeline:
+    """End-to-end zero-shot evaluation pipeline with checkpoint support.
+
+    This pipeline automates the complete evaluation process:
+    1. Generate diverse test queries based on task description
+    2. Collect responses from multiple target endpoints
+    3. Generate evaluation rubrics using LLM
+    4. Run pairwise comparisons between model responses
+    5. Analyze results and rank models
+
+    The pipeline integrates with OpenJudge's core components:
+    - Uses RubricGenerator from openjudge.generator for rubric generation
+    - Uses PairwiseAnalyzer from openjudge.analyzer for result analysis
+    - Uses LLMGrader and GradingRunner for pairwise evaluation
+
+    Attributes:
+        config: Pipeline configuration
+        _queries: Generated queries
+        _responses: Collected responses
+        _rubrics: Generated rubrics
+
+    Example:
+        >>> from cookbooks.zero_shot_evaluation import ZeroShotPipeline
+        >>> pipeline = ZeroShotPipeline.from_config("config.yaml")
+        >>> result = await pipeline.evaluate()
+        >>> print(f"Best model: {result.best_pipeline}")
+    """
 
     def __init__(
         self,
@@ -54,7 +315,7 @@ class ZeroShotEvaluator:
         num_queries: int = 20,
         resume: bool = True,
     ):
-        """Initialize ZeroShotEvaluator.
+        """Initialize ZeroShotPipeline.
 
         Args:
             config: Complete configuration object
@@ -86,23 +347,34 @@ class ZeroShotEvaluator:
         self._queries: List[GeneratedQuery] = []
         self._responses: List[Dict[str, Any]] = []
         self._rubrics: List[str] = []
-        
+
         # Initialize checkpoint manager
-        self._checkpoint_mgr = CheckpointManager(self.config.output.output_dir)
+        self._checkpoint_mgr = _CheckpointManager(self.config.output.output_dir)
         self._resume = resume
 
     @classmethod
-    def from_config(cls, config_path: Union[str, Path]) -> "ZeroShotEvaluator":
-        """Create evaluator from configuration file.
+    def from_config(cls, config_path: Union[str, Path]) -> "ZeroShotPipeline":
+        """Create pipeline from configuration file.
 
         Args:
             config_path: Path to YAML configuration file
 
         Returns:
-            ZeroShotEvaluator instance
+            ZeroShotPipeline instance
         """
         config = load_config(config_path)
         return cls(config=config)
+
+    def _create_judge_model(self) -> OpenAIChatModel:
+        """Create judge model from endpoint configuration."""
+        endpoint = self.config.judge_endpoint
+        extra_params = endpoint.extra_params or {}
+        return OpenAIChatModel(
+            model=endpoint.model,
+            api_key=endpoint.api_key,
+            base_url=endpoint.base_url,
+            **extra_params,
+        )
 
     async def generate_queries(self) -> List[GeneratedQuery]:
         """Step 1: Generate test queries."""
@@ -136,15 +408,20 @@ class ZeroShotEvaluator:
         self,
         sample_queries: Optional[List[str]] = None,
     ) -> List[str]:
-        """Step 3: Generate evaluation rubrics."""
+        """Step 3: Generate evaluation rubrics using OpenJudge's RubricGenerator."""
         logger.info("Step 3: Generating evaluation rubrics...")
 
         if not sample_queries and self._queries:
             sample_queries = [q.query for q in self._queries[:5]]
 
+        # Use OpenJudge's RubricGenerator
+        rubric_config = RubricGenerationConfig(
+            task_description=self.config.task.description,
+            scenario=self.config.task.scenario,
+        )
         generator = RubricGenerator(
-            judge_endpoint=self.config.judge_endpoint,
-            task_config=self.config.task,
+            config=rubric_config,
+            model=self._create_judge_model(),
         )
         self._rubrics = await generator.generate(sample_queries)
         return self._rubrics
@@ -154,6 +431,9 @@ class ZeroShotEvaluator:
         responses: List[Dict[str, Any]],
     ) -> Tuple[List[dict], List[str]]:
         """Prepare pairwise comparison dataset.
+
+        Creates comparison pairs for all model combinations, with both
+        original and swapped orders to eliminate position bias.
 
         Args:
             responses: List of response data from collect_responses()
@@ -278,66 +558,13 @@ class ZeroShotEvaluator:
         grader_results: List[GraderResult],
         endpoint_names: List[str],
     ) -> EvaluationResult:
-        """Analyze pairwise comparison results."""
-        # Initialize counters
-        win_counts: Dict[str, Dict[str, int]] = {
-            ep: {other: 0 for other in endpoint_names if other != ep} for ep in endpoint_names
-        }
-        comparison_counts: Dict[str, Dict[str, int]] = {
-            ep: {other: 0 for other in endpoint_names if other != ep} for ep in endpoint_names
-        }
+        """Analyze pairwise comparison results using OpenJudge's PairwiseAnalyzer."""
+        # Use OpenJudge's PairwiseAnalyzer for analysis
+        analyzer = PairwiseAnalyzer(model_names=endpoint_names)
+        analysis = analyzer.analyze(dataset, grader_results)
 
-        # Count wins
-        for sample, result in zip(dataset, grader_results):
-            metadata = sample.get("metadata", {})
-            model_a = metadata.get("model_a")
-            model_b = metadata.get("model_b")
-
-            if not model_a or not model_b or not isinstance(result, GraderScore):
-                continue
-
-            if result.score >= 0.5:
-                win_counts[model_a][model_b] += 1
-            else:
-                win_counts[model_b][model_a] += 1
-
-            comparison_counts[model_a][model_b] += 1
-            comparison_counts[model_b][model_a] += 1
-
-        # Calculate win matrix
-        win_matrix = {
-            ep_a: {
-                ep_b: (
-                    win_counts[ep_a][ep_b] / comparison_counts[ep_a][ep_b]
-                    if comparison_counts[ep_a][ep_b] > 0
-                    else 0.0
-                )
-                for ep_b in endpoint_names
-                if ep_a != ep_b
-            }
-            for ep_a in endpoint_names
-        }
-
-        # Calculate win rates
-        win_rates = {
-            ep: (
-                sum(win_counts[ep].values()) / sum(comparison_counts[ep].values())
-                if sum(comparison_counts[ep].values()) > 0
-                else 0.0
-            )
-            for ep in endpoint_names
-        }
-
-        rankings = sorted(win_rates.items(), key=lambda x: x[1], reverse=True)
-
-        return EvaluationResult(
-            rankings=rankings,
-            win_rates=win_rates,
-            win_matrix=win_matrix,
-            best_pipeline=rankings[0][0] if rankings else "",
-            total_queries=len(self._responses),
-            total_comparisons=len(grader_results),
-        )
+        # Convert to EvaluationResult
+        return EvaluationResult.from_analysis(analysis, total_queries=len(self._responses))
 
     async def evaluate(
         self,
@@ -357,7 +584,7 @@ class ZeroShotEvaluator:
         checkpoint = None
         if self._resume:
             checkpoint = self._checkpoint_mgr.load()
-        
+
         # Step 1: Generate or load queries
         if queries:
             self._queries = queries
@@ -414,7 +641,7 @@ class ZeroShotEvaluator:
 
         grader_results = await self._run_pairwise_evaluation(dataset, self._rubrics)
 
-        # Step 5: Analyze results
+        # Step 5: Analyze results using OpenJudge's PairwiseAnalyzer
         logger.info("Step 5: Analyzing results...")
         result = self._analyze_results(dataset, grader_results, endpoint_names)
 
@@ -508,3 +735,10 @@ class ZeroShotEvaluator:
         logger.info(f"Results saved to {output_file}")
         return output_file
 
+    def clear_checkpoint(self) -> None:
+        """Clear all checkpoint data to start fresh."""
+        self._checkpoint_mgr.clear()
+
+
+# Backward compatibility alias
+ZeroShotEvaluator = ZeroShotPipeline

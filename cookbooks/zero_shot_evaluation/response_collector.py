@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from loguru import logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from cookbooks.zero_shot_evaluation.core.schema import (
+from cookbooks.zero_shot_evaluation.schema import (
     EvaluationConfig,
     GeneratedQuery,
     OpenAIEndpoint,
@@ -172,9 +172,7 @@ class ResponseCollector:
 
         # Launch all tasks with concurrency control
         tasks = [
-            self.concurrency_manager.run_with_concurrency_control(
-                _collect_one(i, ep_name)
-            )
+            self.concurrency_manager.run_with_concurrency_control(_collect_one(i, ep_name))
             for i in range(len(queries))
             for ep_name in self.endpoints
         ]
@@ -182,7 +180,7 @@ class ResponseCollector:
         # Progress tracking
         completed = 0
         all_results = []
-        
+
         for coro in asyncio.as_completed(tasks):
             result = await coro
             all_results.append(result)
@@ -196,7 +194,7 @@ class ResponseCollector:
             query_idx = item["query_idx"]
             endpoint = item["endpoint"]
             result = item["result"]
-            
+
             if query_idx not in results_by_query:
                 query_obj = queries[query_idx]
                 results_by_query[query_idx] = {
@@ -205,7 +203,7 @@ class ResponseCollector:
                     "difficulty": query_obj.difficulty,
                     "responses": {},
                 }
-            
+
             if result["success"]:
                 results_by_query[query_idx]["responses"][endpoint] = result["response"]
             else:
@@ -220,4 +218,3 @@ class ResponseCollector:
         logger.info(f"Collected responses: {success_count}/{len(results)} queries fully successful")
 
         return results
-

@@ -15,9 +15,8 @@ from typing import List, Optional
 import fire
 from loguru import logger
 
-from cookbooks.zero_shot_evaluation.core.config import load_config
-from cookbooks.zero_shot_evaluation.core.evaluator import ZeroShotEvaluator
-from cookbooks.zero_shot_evaluation.core.schema import GeneratedQuery
+from cookbooks.zero_shot_evaluation.schema import GeneratedQuery, load_config
+from cookbooks.zero_shot_evaluation.zero_shot_pipeline import ZeroShotPipeline
 
 
 def _load_queries_from_file(queries_file: str) -> List[GeneratedQuery]:
@@ -55,11 +54,11 @@ async def _run_evaluation(
     if queries_file:
         queries = _load_queries_from_file(queries_file)
 
-    evaluator = ZeroShotEvaluator(config=config, resume=resume)
-    result = await evaluator.evaluate(queries=queries)
+    pipeline = ZeroShotPipeline(config=config, resume=resume)
+    result = await pipeline.evaluate(queries=queries)
 
     if save:
-        evaluator.save_results(result, output_dir)
+        pipeline.save_results(result, output_dir)
 
 
 def main(
@@ -81,10 +80,10 @@ def main(
     Examples:
         # Normal run (auto-resumes from checkpoint)
         python -m cookbooks.zero_shot_evaluation --config config.yaml --save
-        
+
         # Use pre-generated queries
         python -m cookbooks.zero_shot_evaluation --config config.yaml --queries_file queries.json --save
-        
+
         # Start fresh, ignore checkpoint
         python -m cookbooks.zero_shot_evaluation --config config.yaml --fresh --save
     """
@@ -106,10 +105,9 @@ def main(
         logger.info("Starting fresh (ignoring checkpoint)")
     else:
         logger.info("Resume mode enabled (will continue from checkpoint if exists)")
-    
+
     asyncio.run(_run_evaluation(str(config_path), output_dir, queries_file, save, resume=not fresh))
 
 
 if __name__ == "__main__":
     fire.Fire(main)
-

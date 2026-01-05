@@ -1,15 +1,17 @@
 # -*- coding: utf-8 -*-
-"""Core modules for zero-shot evaluation."""
+"""Core modules for zero-shot evaluation.
 
-from cookbooks.zero_shot_evaluation.core.checkpoint import (
-    CheckpointManager,
-    EvaluationStage,
-)
-from cookbooks.zero_shot_evaluation.core.config import load_config
-from cookbooks.zero_shot_evaluation.core.evaluator import EvaluationResult, ZeroShotEvaluator
+This package contains the core components for the zero-shot evaluation pipeline:
+- ZeroShotPipeline: End-to-end evaluation pipeline
+- QueryGenerator: Test query generation
+- ResponseCollector: Response collection from endpoints
+
+Note: RubricGenerator has been moved to openjudge.generator module for better reusability.
+Note: Checkpoint management is integrated into ZeroShotPipeline.
+"""
+
 from cookbooks.zero_shot_evaluation.core.query_generator import QueryGenerator
 from cookbooks.zero_shot_evaluation.core.response_collector import ResponseCollector
-from cookbooks.zero_shot_evaluation.core.rubric_generator import RubricGenerator
 from cookbooks.zero_shot_evaluation.core.schema import (
     EvaluationConfig,
     GeneratedQuery,
@@ -17,21 +19,26 @@ from cookbooks.zero_shot_evaluation.core.schema import (
     QueryGenerationConfig,
     TaskConfig,
     ZeroShotConfig,
+    load_config,
+)
+from cookbooks.zero_shot_evaluation.core.zero_shot_pipeline import (
+    EvaluationResult,
+    EvaluationStage,
+    ZeroShotEvaluator,
+    ZeroShotPipeline,
 )
 
 __all__ = [
-    # Checkpoint
-    "CheckpointManager",
-    "EvaluationStage",
     # Config
     "load_config",
-    # Evaluator
-    "ZeroShotEvaluator",
+    # Pipeline
+    "ZeroShotPipeline",
+    "ZeroShotEvaluator",  # Backward compatibility
     "EvaluationResult",
+    "EvaluationStage",
     # Components
     "QueryGenerator",
     "ResponseCollector",
-    "RubricGenerator",
     # Schema
     "EvaluationConfig",
     "GeneratedQuery",
@@ -40,4 +47,3 @@ __all__ = [
     "TaskConfig",
     "ZeroShotConfig",
 ]
-
