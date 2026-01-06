@@ -36,12 +36,11 @@ from openjudge.generator.llm_grader_generator import (
     LLMGraderGeneratorConfig,
 )
 from openjudge.generator.simple_rubric.rubric_generator import (
-    RubricGenerationConfig,
+    DEFAULT_RUBRICS,
     TaskBasedRubricGenerator,
 )
 from openjudge.graders.llm_grader import LLMGrader
 from openjudge.graders.schema import GraderMode
-from openjudge.models.base_chat_model import BaseChatModel
 from openjudge.models.openai_chat_model import OpenAIChatModel
 from openjudge.models.schema.prompt_template import LanguageEnum
 
@@ -55,15 +54,12 @@ class SimpleRubricsGeneratorConfig(LLMGraderGeneratorConfig):
 
     Attributes:
         task_description: Description of the task for evaluation.
-                         Should describe what kind of queries and responses are expected.
         scenario: Optional usage scenario for context.
-                 Helps the generator understand the evaluation context.
         language: Language for prompts (ZH or EN). Defaults to EN.
         default_rubrics: Fallback rubrics if generation fails.
-                        These are used when LLM generation fails.
-        max_retries: Maximum number of retry attempts for LLM calls. Defaults to 3.
-        min_score: Minimum score for pointwise evaluation. Defaults to 0.
-        max_score: Maximum score for pointwise evaluation. Defaults to 1.
+        max_retries: Maximum number of retry attempts for LLM calls.
+        min_score: Minimum score for pointwise evaluation.
+        max_score: Maximum score for pointwise evaluation.
 
     Inherited from LLMGraderGeneratorConfig:
         grader_name: Human-readable name for the generated grader.
@@ -72,24 +68,11 @@ class SimpleRubricsGeneratorConfig(LLMGraderGeneratorConfig):
         custom_evaluation_prompt: Custom template for evaluation.
     """
 
-    # Task description parameters
     task_description: str = ""
     scenario: Optional[str] = None
     language: LanguageEnum = LanguageEnum.EN
-
-    # Fallback configuration
-    default_rubrics: List[str] = field(
-        default_factory=lambda: [
-            "Accuracy: Whether the response is factually correct",
-            "Relevance: Whether the response addresses the query",
-            "Completeness: Whether the response is comprehensive",
-        ]
-    )
-
-    # Generation parameters
+    default_rubrics: List[str] = field(default_factory=lambda: DEFAULT_RUBRICS.copy())
     max_retries: int = 3
-
-    # Pointwise-specific parameters
     min_score: int = 0
     max_score: int = 1
 
@@ -107,14 +90,6 @@ class SimpleRubricsGenerator(LLMGraderGenerator):
     2. Uses an LLM to generate relevant evaluation criteria
     3. Creates an LLMGrader configured with these rubrics
 
-    This is suitable for scenarios where:
-    - You have a clear task description
-    - You don't have labeled preference data for rubric learning
-    - You want a quick way to set up evaluation
-
-    For more sophisticated rubric generation from preference data,
-    see the iterative_rubric module.
-
     Example:
         >>> config = SimpleRubricsGeneratorConfig(
         ...     grader_name="Medical QA Grader",
@@ -127,37 +102,24 @@ class SimpleRubricsGenerator(LLMGraderGenerator):
         ...     dataset=[],
         ...     sample_queries=["What are the symptoms of flu?"]
         ... )
-        >>> # Now use the grader to evaluate responses
-        >>> result = await grader.aevaluate(query="...", response="...")
     """
 
     def __init__(self, config: SimpleRubricsGeneratorConfig) -> None:
         """Initialize the simple rubrics generator.
 
         Args:
-            config: Configuration for rubric generation. Includes:
-                - grader_name: Name for the generated grader
-                - model: Language model for generation and evaluation
-                - task_description: Description of the evaluation task
-                - scenario: Optional usage scenario
-                - language: Language for prompts (ZH or EN)
-                - grader_mode: POINTWISE or LISTWISE
-                - default_rubrics: Fallback rubrics if generation fails
+            config: Configuration for rubric generation.
         """
         super().__init__(config)
         self.config: SimpleRubricsGeneratorConfig = config
 
-        # Initialize the rubric generator
-        rubric_config = RubricGenerationConfig(
+        self._rubric_generator = TaskBasedRubricGenerator(
+            model=config.model,
             task_description=config.task_description,
             scenario=config.scenario,
             language=config.language,
             default_rubrics=config.default_rubrics,
             max_retries=config.max_retries,
-        )
-        self._rubric_generator = TaskBasedRubricGenerator(
-            config=rubric_config,
-            model=config.model,
         )
 
     async def generate(
@@ -168,28 +130,20 @@ class SimpleRubricsGenerator(LLMGraderGenerator):
     ) -> LLMGrader:
         """Generate an LLMGrader with rubrics from task description.
 
-        This method generates evaluation rubrics based on the task description
-        and creates an LLMGrader instance configured with these rubrics.
-
         Args:
-            dataset: List of data dictionaries. For this generator, the dataset
-                    is optional and only used to extract sample queries if
-                    sample_queries is not provided.
+            dataset: List of data dictionaries (used to extract sample queries
+                    if sample_queries is not provided).
             sample_queries: Optional list of sample queries for context.
-                           If not provided, queries may be extracted from dataset.
             **kwargs: Additional arguments (currently unused).
 
         Returns:
             LLMGrader: Configured grader instance with generated rubrics.
         """
-        # Extract sample queries from dataset if not provided
         if sample_queries is None and dataset:
             sample_queries = [d.get("query", "") for d in dataset[:5] if d.get("query")]
 
-        # Generate rubrics
-        rubrics = await self._generate_rubrics(dataset, sample_queries=sample_queries, **kwargs)
+        rubrics = await self._generate_rubrics(sample_queries)
 
-        # Prepare grader kwargs
         grader_kwargs = {
             "name": self.config.grader_name,
             "model": self.config.model,
@@ -198,16 +152,13 @@ class SimpleRubricsGenerator(LLMGraderGenerator):
             "language": self.config.language,
         }
 
-        # Add min_score and max_score only for pointwise mode
         if self.config.grader_mode == GraderMode.POINTWISE:
             grader_kwargs["min_score"] = self.config.min_score
             grader_kwargs["max_score"] = self.config.max_score
 
-        # Add template: use custom if provided, otherwise use default based on mode
         if self.config.custom_evaluation_prompt is not None:
             grader_kwargs["template"] = self.config.custom_evaluation_prompt
         else:
-            # Use default evaluation template based on grader mode
             if self.config.grader_mode == GraderMode.POINTWISE:
                 grader_kwargs["template"] = POINTWISE_EVALUATION_TEMPLATE
             else:
@@ -217,30 +168,18 @@ class SimpleRubricsGenerator(LLMGraderGenerator):
 
     async def _generate_rubrics(
         self,
-        dataset: List[dict],
         sample_queries: Optional[List[str]] = None,
-        **kwargs,
     ) -> str:
         """Generate rubrics from task description.
 
-        This method uses the TaskBasedRubricGenerator to create rubrics
-        based on the task description and sample queries.
-
         Args:
-            dataset: List of data dictionaries (used for extracting sample queries
-                    if sample_queries is not provided).
             sample_queries: Optional list of sample queries for context.
-            **kwargs: Additional arguments (currently unused).
 
         Returns:
             str: Formatted string containing evaluation rubrics.
         """
-        # Generate rubrics as list
-        rubrics_list = await self._rubric_generator.generate(
-            sample_queries=sample_queries,
-        )
+        rubrics_list = await self._rubric_generator.generate(sample_queries=sample_queries)
 
-        # Format rubrics into a string
         formatted_rubrics = "\n\n".join(
             [f"{i + 1}. {rubric}" for i, rubric in enumerate(rubrics_list)]
         )
@@ -248,4 +187,3 @@ class SimpleRubricsGenerator(LLMGraderGenerator):
         logger.info(f"Generated {len(rubrics_list)} rubrics from task description")
 
         return formatted_rubrics
-

@@ -8,20 +8,28 @@ The generator uses an LLM to analyze the task description and sample queries
 to produce relevant evaluation criteria without requiring labeled training data.
 
 Classes:
-    RubricGenerationConfig: Configuration for rubric generation.
     TaskBasedRubricGenerator: Generator for evaluation rubrics.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from loguru import logger
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from openjudge.models.base_chat_model import BaseChatModel
-from openjudge.models.openai_chat_model import OpenAIChatModel
 from openjudge.models.schema.oai.message import ChatMessage
 from openjudge.models.schema.prompt_template import LanguageEnum, PromptTemplate
+
+# =============================================================================
+# Constants
+# =============================================================================
+
+DEFAULT_RUBRICS: List[str] = [
+    "Accuracy: Whether the response is factually correct",
+    "Relevance: Whether the response addresses the query",
+    "Completeness: Whether the response is comprehensive",
+]
 
 # =============================================================================
 # Prompt Templates
@@ -128,39 +136,6 @@ class RubricGenerationOutput(BaseModel):
 
 
 # =============================================================================
-# Configuration
-# =============================================================================
-
-
-class RubricGenerationConfig(BaseModel):
-    """Configuration for rubric generation.
-
-    Attributes:
-        task_description: Description of the task for evaluation.
-                         Should describe what kind of queries and responses are expected.
-        scenario: Optional usage scenario for context.
-                 Helps the generator understand the evaluation context.
-        language: Language for prompts (ZH or EN). Defaults to EN.
-        default_rubrics: Fallback rubrics if generation fails.
-                        These are used when LLM generation fails.
-        max_retries: Maximum number of retry attempts for LLM calls. Defaults to 3.
-    """
-
-    task_description: str = Field(..., description="Task description")
-    scenario: Optional[str] = Field(default=None, description="Usage scenario")
-    language: LanguageEnum = Field(default=LanguageEnum.EN, description="Language for prompts")
-    default_rubrics: List[str] = Field(
-        default=[
-            "Accuracy: Whether the response is factually correct",
-            "Relevance: Whether the response addresses the query",
-            "Completeness: Whether the response is comprehensive",
-        ],
-        description="Fallback rubrics if generation fails",
-    )
-    max_retries: int = Field(default=3, description="Maximum retry attempts")
-
-
-# =============================================================================
 # TaskBasedRubricGenerator
 # =============================================================================
 
@@ -172,65 +147,44 @@ class TaskBasedRubricGenerator:
     comparison or other evaluation scenarios. It uses an LLM to generate
     task-specific criteria based on the provided task description.
 
-    This is a core utility class that generates rubrics as a list of strings.
-    For creating complete LLMGrader instances, use SimpleRubricsGenerator instead.
-
-    Attributes:
-        config: Rubric generation configuration
-        model: Language model for generation
-
     Example:
         >>> from openjudge.models.openai_chat_model import OpenAIChatModel
-        >>> from openjudge.generator.simple_rubric import TaskBasedRubricGenerator, RubricGenerationConfig
+        >>> from openjudge.generator.simple_rubric import TaskBasedRubricGenerator
         >>>
-        >>> config = RubricGenerationConfig(
+        >>> model = OpenAIChatModel(model="gpt-4o-mini")
+        >>> generator = TaskBasedRubricGenerator(
+        ...     model=model,
         ...     task_description="Medical question answering system",
         ...     scenario="Healthcare professionals seeking quick answers"
         ... )
-        >>> model = OpenAIChatModel(model="gpt-4o-mini")
-        >>> generator = TaskBasedRubricGenerator(config=config, model=model)
         >>> rubrics = await generator.generate(sample_queries=["What are the symptoms of flu?"])
     """
 
     def __init__(
         self,
-        config: RubricGenerationConfig,
         model: BaseChatModel,
+        task_description: str,
+        scenario: Optional[str] = None,
+        language: LanguageEnum = LanguageEnum.EN,
+        default_rubrics: Optional[List[str]] = None,
+        max_retries: int = 3,
     ):
         """Initialize TaskBasedRubricGenerator.
 
         Args:
-            config: Rubric generation configuration
-            model: Language model for generating rubrics
+            model: Language model for generating rubrics.
+            task_description: Description of the task for evaluation.
+            scenario: Optional usage scenario for context.
+            language: Language for prompts (ZH or EN). Defaults to EN.
+            default_rubrics: Fallback rubrics if generation fails.
+            max_retries: Maximum number of retry attempts for LLM calls.
         """
-        self.config = config
         self.model = model
-
-    @classmethod
-    def from_dict(
-        cls,
-        config_dict: Dict[str, Any],
-        model: Optional[BaseChatModel] = None,
-        model_config: Optional[Dict[str, Any]] = None,
-    ) -> "TaskBasedRubricGenerator":
-        """Create TaskBasedRubricGenerator from dictionary configuration.
-
-        Args:
-            config_dict: Configuration dictionary with task_description, scenario, etc.
-            model: Pre-initialized model (optional)
-            model_config: Model configuration dict if model not provided
-
-        Returns:
-            TaskBasedRubricGenerator instance
-        """
-        config = RubricGenerationConfig(**config_dict)
-
-        if model is None:
-            if model_config is None:
-                raise ValueError("Either model or model_config must be provided")
-            model = OpenAIChatModel(**model_config)
-
-        return cls(config=config, model=model)
+        self.task_description = task_description
+        self.scenario = scenario
+        self.language = language
+        self.default_rubrics = default_rubrics or DEFAULT_RUBRICS.copy()
+        self.max_retries = max_retries
 
     async def generate(
         self,
@@ -247,17 +201,17 @@ class TaskBasedRubricGenerator:
             List of rubric strings
         """
 
-        @retry(stop=stop_after_attempt(self.config.max_retries), wait=wait_fixed(1.0))
+        @retry(stop=stop_after_attempt(self.max_retries), wait=wait_fixed(1.0))
         async def _generate() -> List[str]:
             queries_text = "None provided"
             if sample_queries:
                 queries_text = "\n".join(f"- {q}" for q in sample_queries[:5])
 
             messages = RUBRIC_GENERATION_TEMPLATE.format(
-                task_description=self.config.task_description,
-                scenario=self.config.scenario or "General usage",
+                task_description=self.task_description,
+                scenario=self.scenario or "General usage",
                 sample_queries=queries_text,
-                language=self.config.language,
+                language=self.language,
             )
 
             response = await self.model.achat(
@@ -278,7 +232,5 @@ class TaskBasedRubricGenerator:
             return rubrics
         except Exception as e:
             logger.error(f"Rubric generation failed: {e}")
-            # Return default rubrics as fallback
             logger.warning("Using default rubrics as fallback")
-            return self.config.default_rubrics
-
+            return self.default_rubrics

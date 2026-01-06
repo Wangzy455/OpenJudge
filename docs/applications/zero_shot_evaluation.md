@@ -73,6 +73,36 @@ python -m cookbooks.zero_shot_evaluation --config config.yaml --fresh --save
 python -m cookbooks.zero_shot_evaluation --config config.yaml --queries_file queries.json --save
 ```
 
+### Using Pre-defined Queries
+
+Skip query generation by providing your own queries file. This is useful when you want to evaluate models on a specific set of questions.
+
+**Create a queries file** (`queries.json`):
+
+```json
+[
+  {"query": "Translate: AI is transforming industries."},
+  {"query": "Translate: The weather is nice today."},
+  {"query": "Translate: How to learn programming effectively?"}
+]
+```
+
+The `category` and `difficulty` fields are optional:
+
+```json
+[
+  {"query": "Your question here", "category": "general", "difficulty": "easy"}
+]
+```
+
+**Run evaluation**:
+
+```bash
+python -m cookbooks.zero_shot_evaluation --config config.yaml --queries_file queries.json --save
+```
+
+The pipeline will skip query generation and directly use your queries for model comparison.
+
 
 ## Configuration
 
@@ -189,13 +219,13 @@ responses = await collector.collect(queries)
 ### Step 3: Generate Evaluation Rubrics
 
 ```python
-from openjudge.generator.simple_rubric import TaskBasedRubricGenerator, RubricGenerationConfig
+from openjudge.generator.simple_rubric import TaskBasedRubricGenerator
 
-rubric_config = RubricGenerationConfig(
+rubric_gen = TaskBasedRubricGenerator(
+    model=judge_model,
     task_description=task.description,
     scenario=task.scenario,
 )
-rubric_gen = TaskBasedRubricGenerator(config=rubric_config, model=judge_model)
 rubrics = await rubric_gen.generate(
     sample_queries=[q.query for q in queries[:5]]
 )

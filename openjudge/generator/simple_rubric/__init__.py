@@ -12,7 +12,9 @@ Classes:
     SimpleRubricsGenerator: Main generator class that creates LLMGrader instances
     SimpleRubricsGeneratorConfig: Configuration for the generator
     TaskBasedRubricGenerator: Core rubric generation logic
-    RubricGenerationConfig: Configuration for rubric generation
+
+Constants:
+    DEFAULT_RUBRICS: Default fallback rubrics if generation fails
 """
 
 from openjudge.generator.simple_rubric.generator import (
@@ -20,7 +22,7 @@ from openjudge.generator.simple_rubric.generator import (
     SimpleRubricsGeneratorConfig,
 )
 from openjudge.generator.simple_rubric.rubric_generator import (
-    RubricGenerationConfig,
+    DEFAULT_RUBRICS,
     TaskBasedRubricGenerator,
 )
 
@@ -30,6 +32,5 @@ __all__ = [
     "SimpleRubricsGeneratorConfig",
     # Core rubric generation logic
     "TaskBasedRubricGenerator",
-    "RubricGenerationConfig",
+    "DEFAULT_RUBRICS",
 ]
-

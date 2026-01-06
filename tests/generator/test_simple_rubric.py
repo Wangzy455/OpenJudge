@@ -35,7 +35,6 @@ import pytest
 from loguru import logger
 
 from openjudge.generator.simple_rubric import (
-    RubricGenerationConfig,
     SimpleRubricsGenerator,
     SimpleRubricsGeneratorConfig,
     TaskBasedRubricGenerator,
@@ -93,13 +92,12 @@ async def test_task_based_rubric_generator() -> None:
     """Test TaskBasedRubricGenerator for generating rubrics from task description."""
     model = get_test_model()
 
-    config = RubricGenerationConfig(
+    generator = TaskBasedRubricGenerator(
+        model=model,
         task_description=TEST_TASK_DESCRIPTION,
         scenario=TEST_SCENARIO,
         language=LanguageEnum.EN,
     )
-
-    generator = TaskBasedRubricGenerator(config=config, model=model)
     rubrics = await generator.generate(sample_queries=TEST_SAMPLE_QUERIES)
 
     # Verify rubrics were generated
@@ -122,13 +120,12 @@ async def test_task_based_rubric_generator_chinese() -> None:
     """Test TaskBasedRubricGenerator with Chinese language prompts."""
     model = get_test_model()
 
-    config = RubricGenerationConfig(
+    generator = TaskBasedRubricGenerator(
+        model=model,
         task_description="代码审查助手，帮助开发者检查 Python 代码质量",
         scenario="开发者需要对代码进行质量检查和改进建议",
         language=LanguageEnum.ZH,
     )
-
-    generator = TaskBasedRubricGenerator(config=config, model=model)
     rubrics = await generator.generate(
         sample_queries=[
             "请审查这段代码是否有bug",
@@ -156,37 +153,15 @@ async def test_task_based_rubric_generator_default_fallback() -> None:
         "Custom default rubric 2",
     ]
 
-    config = RubricGenerationConfig(
+    generator = TaskBasedRubricGenerator(
+        model=model,
         task_description=TEST_TASK_DESCRIPTION,
         scenario=TEST_SCENARIO,
         default_rubrics=default_rubrics,
     )
 
-    generator = TaskBasedRubricGenerator(config=config, model=model)
-
-    # Verify default_rubrics are set in config
-    assert generator.config.default_rubrics == default_rubrics
-
-
-@pytest.mark.asyncio
-async def test_task_based_rubric_generator_from_dict() -> None:
-    """Test TaskBasedRubricGenerator creation from dictionary configuration."""
-    config_dict = {
-        "task_description": TEST_TASK_DESCRIPTION,
-        "scenario": TEST_SCENARIO,
-    }
-
-    model_config = {"model": "qwen3-32b", "stream": False}
-
-    generator = TaskBasedRubricGenerator.from_dict(
-        config_dict=config_dict,
-        model_config=model_config,
-    )
-
-    # Verify generator was created correctly
-    assert generator is not None
-    assert generator.config.task_description == TEST_TASK_DESCRIPTION
-    assert generator.config.scenario == TEST_SCENARIO
+    # Verify default_rubrics are set
+    assert generator.default_rubrics == default_rubrics
 
 
 # =============================================================================
@@ -313,7 +288,6 @@ async def main() -> None:
     await test_task_based_rubric_generator()
     await test_task_based_rubric_generator_chinese()
     await test_task_based_rubric_generator_default_fallback()
-    await test_task_based_rubric_generator_from_dict()
 
     logger.info("\nRunning SimpleRubricsGenerator tests...")
     await test_simple_rubrics_generator_pointwise()
@@ -325,4 +299,3 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
-

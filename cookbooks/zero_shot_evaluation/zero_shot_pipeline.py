@@ -34,7 +34,7 @@ from cookbooks.zero_shot_evaluation.schema import (
 
 # OpenJudge core components
 from openjudge.analyzer import PairwiseAnalyzer, PairwiseAnalysisResult
-from openjudge.generator.simple_rubric import RubricGenerationConfig, TaskBasedRubricGenerator
+from openjudge.generator.simple_rubric import TaskBasedRubricGenerator
 from openjudge.graders.llm_grader import GraderMode, LLMGrader
 from openjudge.graders.schema import GraderResult
 from openjudge.models.openai_chat_model import OpenAIChatModel
@@ -415,13 +415,10 @@ class ZeroShotPipeline:
             sample_queries = [q.query for q in self._queries[:5]]
 
         # Use OpenJudge's TaskBasedRubricGenerator
-        rubric_config = RubricGenerationConfig(
+        generator = TaskBasedRubricGenerator(
+            model=self._create_judge_model(),
             task_description=self.config.task.description,
             scenario=self.config.task.scenario,
-        )
-        generator = TaskBasedRubricGenerator(
-            config=rubric_config,
-            model=self._create_judge_model(),
         )
         self._rubrics = await generator.generate(sample_queries)
         return self._rubrics
