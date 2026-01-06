@@ -23,8 +23,14 @@ Constants:
     DEFAULT_RUBRICS: Default fallback rubrics if generation fails
 """
 
-from openjudge.generator.base_generator import BaseGraderGenerator, GraderGeneratorConfig
-from openjudge.generator.llm_grader_generator import LLMGraderGenerator, LLMGraderGeneratorConfig
+from openjudge.generator.base_generator import (
+    BaseGraderGenerator,
+    GraderGeneratorConfig,
+)
+from openjudge.generator.llm_grader_generator import (
+    LLMGraderGenerator,
+    LLMGraderGeneratorConfig,
+)
 
 # Simple rubric generation
 from openjudge.generator.simple_rubric import (

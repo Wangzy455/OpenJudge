@@ -180,8 +180,8 @@ class PairwiseAnalyzer(BaseAnalyzer):
             worst_model=rankings[-1][0] if rankings else "",
             metadata={
                 "num_models": len(self.model_names),
-                "explanation": f"Analyzed {len(grader_results)} pairwise comparisons across {len(self.model_names)} models",
+                "explanation": (
+                    f"Analyzed {len(grader_results)} pairwise comparisons " f"across {len(self.model_names)} models"
+                ),
             },
         )
-
-

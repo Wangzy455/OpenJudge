@@ -33,7 +33,7 @@ from cookbooks.zero_shot_evaluation.schema import (
 )
 
 # OpenJudge core components
-from openjudge.analyzer import PairwiseAnalyzer, PairwiseAnalysisResult
+from openjudge.analyzer import PairwiseAnalysisResult, PairwiseAnalyzer
 from openjudge.generator.simple_rubric import TaskBasedRubricGenerator
 from openjudge.graders.llm_grader import GraderMode, LLMGrader
 from openjudge.graders.schema import GraderResult
@@ -41,7 +41,6 @@ from openjudge.models.openai_chat_model import OpenAIChatModel
 from openjudge.models.schema.oai.message import ChatMessage
 from openjudge.models.schema.prompt_template import PromptTemplate
 from openjudge.runner.grading_runner import GraderConfig, GradingRunner
-
 
 # =============================================================================
 # Checkpoint Management (integrated from checkpoint.py)

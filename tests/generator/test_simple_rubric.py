@@ -9,7 +9,7 @@ Demonstrates workflow:
 2. Generate rubrics from task description (no labeled data required)
 3. Optionally create a complete LLMGrader for evaluation
 
-Supports both TaskBasedRubricGenerator (rubrics only) and 
+Supports both TaskBasedRubricGenerator (rubrics only) and
 SimpleRubricsGenerator (complete LLMGrader).
 
 Example:
@@ -43,7 +43,6 @@ from openjudge.graders.llm_grader import LLMGrader
 from openjudge.graders.schema import GraderMode, GraderScore
 from openjudge.models.openai_chat_model import OpenAIChatModel
 from openjudge.models.schema.prompt_template import LanguageEnum
-
 
 # =============================================================================
 # Test Data

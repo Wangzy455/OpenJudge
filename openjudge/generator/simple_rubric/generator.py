@@ -35,10 +35,7 @@ from openjudge.generator.llm_grader_generator import (
     LLMGraderGenerator,
     LLMGraderGeneratorConfig,
 )
-from openjudge.generator.simple_rubric.rubric_generator import (
-    DEFAULT_RUBRICS,
-    TaskBasedRubricGenerator,
-)
+from openjudge.generator.simple_rubric.rubric_generator import TaskBasedRubricGenerator
 from openjudge.graders.llm_grader import LLMGrader
 from openjudge.graders.schema import GraderMode
 from openjudge.models.openai_chat_model import OpenAIChatModel
@@ -71,7 +68,7 @@ class SimpleRubricsGeneratorConfig(LLMGraderGeneratorConfig):
     task_description: str = ""
     scenario: Optional[str] = None
     language: LanguageEnum = LanguageEnum.EN
-    default_rubrics: List[str] = field(default_factory=lambda: DEFAULT_RUBRICS.copy())
+    default_rubrics: List[str] = field(default_factory=list)
     max_retries: int = 3
     min_score: int = 0
     max_score: int = 1
@@ -168,21 +165,19 @@ class SimpleRubricsGenerator(LLMGraderGenerator):
 
     async def _generate_rubrics(
         self,
-        sample_queries: Optional[List[str]] = None,
+        dataset: Optional[List[str]] = None,  # pylint: disable=arguments-renamed
     ) -> str:
         """Generate rubrics from task description.
 
         Args:
-            sample_queries: Optional list of sample queries for context.
+            dataset: Optional list of sample queries for context.
 
         Returns:
             str: Formatted string containing evaluation rubrics.
         """
-        rubrics_list = await self._rubric_generator.generate(sample_queries=sample_queries)
+        rubrics_list = await self._rubric_generator.generate(sample_queries=dataset)
 
-        formatted_rubrics = "\n\n".join(
-            [f"{i + 1}. {rubric}" for i, rubric in enumerate(rubrics_list)]
-        )
+        formatted_rubrics = "\n\n".join([f"{i + 1}. {rubric}" for i, rubric in enumerate(rubrics_list)])
 
         logger.info(f"Generated {len(rubrics_list)} rubrics from task description")
 

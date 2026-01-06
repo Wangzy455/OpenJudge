@@ -12,7 +12,10 @@ Classes:
 """
 
 from openjudge.analyzer.base_analyzer import AnalysisResult, BaseAnalyzer
-from openjudge.analyzer.pairwise_analyzer import PairwiseAnalysisResult, PairwiseAnalyzer
+from openjudge.analyzer.pairwise_analyzer import (
+    PairwiseAnalysisResult,
+    PairwiseAnalyzer,
+)
 
 __all__ = [
     # Base classes
