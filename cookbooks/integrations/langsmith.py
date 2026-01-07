@@ -73,7 +73,7 @@ def create_langsmith_evaluator(grader: BaseGrader, mapper: dict | None = None):
             elif isinstance(result, GraderError):
                 return {"key": grader.name, "score": 0.0, "comment": f"Error: {result.error}"}
             else:
-                return {"key": grader.name, "score": 0.0, "comment": "Unknown result type"}
+                return {"key": grader.name, "score": 0.0, "comment": f"Unsupported result type {type(result)}"}
         except Exception as e:
             # Handle any unexpected errors during evaluation
             return {"key": grader.name, "score": 0.0, "comment": f"Evaluation failed: {str(e)}"}
@@ -144,7 +144,9 @@ class LangSmithBatchEvaluator:
                             {"key": grader_name, "score": 0.0, "comment": f"Error: {result.error}"}
                         )
                     else:
-                        formatted_results.append({"key": grader_name, "score": 0.0, "comment": "Unknown result type"})
+                        formatted_results.append(
+                            {"key": grader_name, "score": 0.0, "comment": f"Unsupported result type {type(result)}"}
+                        )
 
             return formatted_results
 
