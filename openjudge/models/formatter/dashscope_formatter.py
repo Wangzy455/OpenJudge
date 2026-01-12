@@ -83,7 +83,7 @@ class DashScopeFormatter(BaseFormatter):
         if isinstance(content, str):
             return content
 
-        # If content is a list, process each part
+        # If content is a list, process each part (including empty list)
         if isinstance(content, list):
             openai_content = []
             for part in content:
@@ -143,7 +143,7 @@ class DashScopeFormatter(BaseFormatter):
         if isinstance(content, str):
             return content
 
-        # If content is a list, process each part
+        # If content is a list, process each part (including empty list)
         if isinstance(content, list):
             dashscope_content = []
             for part in content:
