@@ -49,6 +49,8 @@ class OpenAIChatModel(BaseChatModel):
         reasoning_effort: Literal["low", "medium", "high"] | None = None,
         organization: str | None = None,
         client_args: Dict[str, Any] | None = None,
+        max_retries: int | None = None,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize the openai client.
@@ -85,6 +87,11 @@ class OpenAIChatModel(BaseChatModel):
 
         if organization:
             client_args["organization"] = organization
+        if max_retries is not None:
+            client_args["max_retries"] = max_retries
+    
+        if timeout is not None:
+            client_args["timeout"] = timeout
 
         self.client = AsyncOpenAI(**client_args)
 
